@@ -1,0 +1,18 @@
+﻿@model ReferalDemo.ViewModels.BaseModel
+
+<div>
+    <form asp-controller="Test" asp-action="GetConfirmPage" method="post">
+        <div class="input-group mb-3">
+            <select class="form-control" asp-for="PhoneCode" asp-items="@(new List<SelectListItem>() { new SelectListItem("+38", "+38", true), new SelectListItem("+351", "+351"), new SelectListItem("+48", "+48"), new SelectListItem("+1", "+1") })">
+            </select>
+            <input asp-for="Phone" class="form-control" type="tel" autocomplete="on" placeholder="000-00-00" min="10" max="10" maxlength="10" size="10" required></input>
+        </div>
+        <input id="user-id" hidden asp-for="UserId"></input>
+        <button class="btn btn-primary" type="submit">Далі</button>
+    </form>
+</div>
+
+@section Scripts
+{
+    <script src="~/js/site.js"></script>
+}

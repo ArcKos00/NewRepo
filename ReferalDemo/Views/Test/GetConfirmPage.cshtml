@@ -1,0 +1,13 @@
+﻿@model ReferalDemo.ViewModels.BaseWithCodeViewModel
+
+<div>
+    <form asp-controller="Test" asp-action="ConfirmOtp" method="post">
+        <div class="input-group mb-3">
+            <input class="form-control" type="text" asp-for="Code" maxlength="4" min="4" placeholder="00-00"></input>
+            <input hidden asp-for="Phone" value="@Model.Phone"></input>
+            <input hidden asp-for="PhoneCode" value="@Model.PhoneCode"></input>
+            <input id="user-id" hidden asp-for="UserId" value="@Model.UserId"></input>
+        </div>
+        <button type="submit" class="btn btn-primary">Далі</button>
+    </form>
+</div>
