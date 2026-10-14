@@ -54,7 +54,7 @@ data:
   LOG_LEVEL: "info"
   # Keycloak (як у litopys). Issuer — рівно той рядок, що стоїть в `iss` токенів.
   KEYCLOAK_ISSUER: "https://auth.infrastructure.kub.k2.lan/realms/k2"   # TODO: звірити з litopys
-  KEYCLOAK_CLIENT_ID: "purchase"                                        # TODO: id клієнта в Keycloak
+  KEYCLOAK_CLIENT_ID: "gov_purchase"                                        # TODO: id клієнта в Keycloak
   # Куди браузер повертається після логіну (redirect URI = PUBLIC_URL/auth/callback); https → secure-кука.
   PUBLIC_URL: "https://purchase.gov.kub.k2.lan"
   # Скільки годин живе один вхід (не подовжується).
