@@ -1,13 +1,4 @@
 **/node_modules
 **/dist
-**/data
-**/coverage
+data
 **/*.tsbuildinfo
-**/*.log
-# секрети й локальні налаштування не повинні потрапляти в контекст збірки (і кеш шарів)
-**/.env
-**/.env.*
-!**/.env.example
-.git
-.idea
-.vscode
