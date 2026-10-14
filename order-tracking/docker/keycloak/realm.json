@@ -1,0 +1,43 @@
+{
+  "realm": "purchase",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "purchase",
+      "name": "Облік замовлень (dev)",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "purchase-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5173/auth/callback", "http://localhost:3000/auth/callback"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:3000/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "dev",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev@example.com",
+      "firstName": "Тест",
+      "lastName": "Розробник",
+      "credentials": [{ "type": "password", "value": "dev", "temporary": false }]
+    },
+    {
+      "username": "operator",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "operator@example.com",
+      "firstName": "Олена",
+      "lastName": "Операторка",
+      "credentials": [{ "type": "password", "value": "operator", "temporary": false }]
+    }
+  ]
+}

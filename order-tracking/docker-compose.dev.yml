@@ -1,0 +1,36 @@
+# Оточення для розробки: Postgres + Keycloak. Сам застосунок запускається з IDE / npm (див. README).
+#     docker compose -f docker-compose.dev.yml up -d     (або npm run db:up, або run configuration «db: …»)
+# Порти зсунуті (5442, 8081), щоб не заважати litopys, запущеному поруч.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5442:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+      # друга база — для тестів API (їх запуск повністю її очищує)
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  # Realm purchase з клієнтом purchase і користувачами dev/dev, operator/operator (docker/keycloak/realm.json).
+  # Адмінка: http://localhost:8081 (admin/admin).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+
+volumes:
+  pgdata-dev:

@@ -7,7 +7,8 @@
     "start": "node dist/main.js",
     "dev": "nest start --watch",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "dev:debug": "nest start --watch --debug=9229"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",

@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="all: dev (db + keycloak, api 9229, web)" type="CompoundRunConfigurationType">
+    <toRun name="db: docker compose (postgres :5442 + keycloak :8081)" type="docker-deploy" />
+    <toRun name="api: dev (debug 9229)" type="js.build_tools.npm" />
+    <toRun name="web: dev (:5173)" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

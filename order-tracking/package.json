@@ -10,6 +10,9 @@
   "scripts": {
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",
     "build": "npm run build -w apps/web && npm run build -w apps/api",
     "start": "npm run start -w apps/api",
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",

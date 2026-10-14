@@ -58,17 +58,34 @@ docker compose up --build
 
 ### Розробка
 
-Потрібні Node.js 20+ і PostgreSQL з базою `orders`.
+Потрібні Node.js 22.12+ (краще 24) і Docker.
 
 ```bash
 npm install
-# без Keycloak (усе від dev-користувача); з Keycloak — змінні KEYCLOAK_* / PUBLIC_URL / SESSION_SECRET з .env.example
-AUTH_DISABLED=true DATABASE_URL=postgres://postgres:postgres@localhost:5432/orders npm run dev:api   # API на :3000
-npm run dev:web                                                                   # фронт на :5173 (проксі /api, /auth → :3000)
+cp apps/api/.env.example apps/api/.env   # значення вже під docker-compose.dev.yml
+npm run db:up                            # Postgres :5442 (бази orders і orders_test) + Keycloak :8081
+npm run dev -w apps/api                  # API на :3000 (або dev:debug — з дебагером на 9229)
+npm run dev:web                          # фронт на http://localhost:5173 (проксі /api, /auth → :3000)
 ```
 
+Вхід: `dev` / `dev` або `operator` / `operator` (realm `purchase`, `docker/keycloak/realm.json`);
+адмінка Keycloak — http://localhost:8081 (`admin` / `admin`). Без Keycloak: `AUTH_DISABLED=true`.
+`npm run db:down` — зупинити, `npm run db:reset` — з нуля (дані бази зітруться).
+
+**WebStorm**: готові run configurations лежать у `.run/` у корені репозиторію й підхоплюються самі:
+
+| Конфігурація | Що робить |
+|---|---|
+| `all: dev (db + keycloak, api 9229, web)` | усе разом: compose, API з дебагером, Vite |
+| `db: docker compose (postgres :5442 + keycloak :8081)` | лише оточення |
+| `api: dev (debug 9229)` / `api: dev без Keycloak (AUTH_DISABLED)` | API у watch-режимі |
+| `web: dev (:5173)` | фронт |
+| `attach: api 9229 + web` | під'єднати дебагер до API і відкрити браузер у режимі налагодження |
+| `api: тести (jest, база orders_test)` · `typecheck (api + web)` | перевірки |
+
+Змінні API читаються з `apps/api/.env` (файл у `.gitignore`); змінні оточення мають перевагу.
 Таблиці створюються міграціями автоматично при старті API.
-Завантажені файли зберігаються в `data/uploads` (див. `.env.example`).
+Завантажені файли зберігаються в `apps/api/data/uploads`.
 
 ### Продакшен-збірка без Docker
 
@@ -103,8 +120,7 @@ DATABASE_URL=... npm start   # http://localhost:3000
 
 ```bash
 npm run typecheck
-createdb orders_test
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/orders_test npm test
+npm test   # база з TEST_DATABASE_URL (apps/api/.env), типово orders_test з docker-compose.dev.yml
 ```
 
 Тести API працюють з окремою базою, яку **повністю очищують** перед запуском.

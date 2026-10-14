@@ -1,4 +1,5 @@
-// ПЕРШИМ: OpenTelemetry має пропатчити http/express/nest/pg до їх завантаження (без ендпоінта — нічого не робить)
+// ПЕРШИМ: змінні з .env (локальна розробка), далі OpenTelemetry має пропатчити http/express/nest/pg до їх завантаження (без ендпоінта — нічого не робить)
+import './env';
 import './telemetry';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';

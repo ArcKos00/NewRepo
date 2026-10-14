@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="attach: api 9229 + web" type="CompoundRunConfigurationType">
+    <toRun name="api: attach 9229" type="ChromiumRemoteDebugType" />
+    <toRun name="web: debug у браузері" type="JavascriptDebugType" />
+    <method v="2" />
+  </configuration>
+</component>
