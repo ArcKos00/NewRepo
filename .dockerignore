@@ -16,3 +16,4 @@ docker
 deploy.yaml
 docker-compose*.yml
 README.md
+.
