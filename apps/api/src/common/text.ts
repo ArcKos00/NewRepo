@@ -1,5 +1,11 @@
 export const searchText = (s?: string | null) => (s ?? '').trim().toUpperCase();
 
+/** Шаблон LIKE «містить» для *_search-колонок (з екрануванням %, _ і \\). */
+export const likePattern = (s: string) => `%${searchText(s).replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+
+/** Слова загального пошуку (не більше 10). */
+export const searchWords = (q?: string) => (q?.trim() ? q.trim().split(/\s+/).slice(0, 10) : []);
+
 export const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 export function today(): string {

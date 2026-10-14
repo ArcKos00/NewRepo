@@ -26,11 +26,12 @@ type Req = IncomingMessage & { originalUrl?: string };
           res.setHeader('X-Request-Id', id);
           return id;
         },
-        // Статика фронту, проби і пакети кліків з браузера — без логів запитів.
+        // Статика фронту, проби, пакети кліків з браузера і потік SSE — без логів запитів.
         autoLogging: {
           ignore: (req) => {
             const url = (req as Req).originalUrl ?? req.url ?? '';
-            if (url.startsWith('/api/health') || url.startsWith('/api/audit/events')) return true;
+            // /api/events — SSE: «запит» триває, доки відкрита вкладка, і закривається обривом.
+            if (url.startsWith('/api/health') || url.startsWith('/api/audit/events') || url.startsWith('/api/events')) return true;
             return !url.startsWith('/api/') && !url.startsWith('/auth/');
           },
         },

@@ -93,13 +93,69 @@ export interface DeliveryInput {
 }
 
 export interface ContractSearch {
+  /** Загальний пошук: кожне слово має знайтися в номері, контрагенті або найменуванні */
+  q?: string;
   number?: string;
   counterparty?: string;
   item?: string;
   dateFrom?: string;
   dateTo?: string;
   status?: ContractStatus;
+  /** Сторінка, з 1 */
+  page?: number;
+  pageSize?: number;
 }
+
+export interface ContractList {
+  contracts: ContractSummary[];
+  /** Скільки всього договорів під фільтр */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// ---------- Усі поставки (сторінка «Поставки») ----------
+
+export interface DeliverySearch {
+  /** Загальний пошук: кожне слово — у накладній, номері договору, контрагенті або найменуванні поставки */
+  q?: string;
+  invoice?: string;
+  number?: string;
+  counterparty?: string;
+  item?: string;
+  /** Дата поставки */
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface DeliveryRow {
+  id: number;
+  date: string;
+  invoiceNumber: string;
+  notes: string | null;
+  file: FileInfo | null;
+  contract: { id: number; number: string; counterparty: string };
+  lines: { orderItemId: number; name: string; unit: string; quantity: number }[];
+}
+
+export interface DeliveryList {
+  deliveries: DeliveryRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// ---------- Живі оновлення (SSE /api/events) ----------
+
+/**
+ * Подія зміни даних. Лише id: самі дані клієнт перечитує звичайними запитами (з перевіркою входу).
+ * resync — сервер міг пропустити події (перепідключення до БД): перечитати все.
+ */
+export type LiveEvent =
+  | { type: 'contract'; action: 'created' | 'updated' | 'deleted'; contractId: number }
+  | { type: 'resync' };
 
 /** Тіло відповіді 422: помилки за шляхом поля ("items.0.quantity"); ключ "_" — загальна. */
 export interface ValidationErrorBody {

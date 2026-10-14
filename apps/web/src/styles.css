@@ -134,3 +134,16 @@ table.audit tr.ui td { color: var(--muted); }
 table.audit pre { max-height: 360px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin: 6px 0 0; font-family: var(--font-num); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 table.audit code { font-family: var(--font-num); font-size: .78rem; }
 table.audit details summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
+
+/* Списки: плашка пошуку/фільтрів і сторінки */
+.filters-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+.filters-bar .search { flex: 1 1 260px; position: relative; display: flex; align-items: center; }
+.filters-bar .search svg { position: absolute; left: 10px; width: 16px; height: 16px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.filters-bar .search input { padding-left: 34px; }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: .75rem; font-weight: 600; }
+.filters-panel { padding: 4px 12px 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.pager .btn.current { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.list-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 22px; }
+.stale { opacity: .6; transition: opacity .15s; }

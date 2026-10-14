@@ -3,8 +3,10 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-route
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError } from './api';
 import { flush, startTracking, trackNavigation } from './tracking';
+import { useLiveUpdates } from './live';
 import { LoadError, Loading } from './components/ui';
 import { ContractsPage } from './pages/ContractsPage';
+import { DeliveriesPage } from './pages/DeliveriesPage';
 import { ContractPage } from './pages/ContractPage';
 import { ContractFormPage } from './pages/ContractFormPage';
 import { DeliveryPage } from './pages/DeliveryPage';
@@ -18,6 +20,8 @@ export function App() {
   const onLogin = location.pathname === '/login';
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false, enabled: !onLogin, staleTime: Infinity });
   const user = me.data;
+
+  useLiveUpdates(!!user);
 
   // Трасування — лише для того, хто увійшов (інакше нема кому приписати дію).
   useEffect(() => {
@@ -50,6 +54,7 @@ export function App() {
           <Link to="/contracts" className="brand">Облік замовлень</Link>
           <nav className="nav">
             <NavLink to="/contracts" end className="btn">Замовлення</NavLink>
+            <NavLink to="/deliveries" className="btn">Поставки</NavLink>
             <NavLink to="/audit" className="btn">Журнал</NavLink>
             <NavLink to="/contracts/new" className="btn primary">+ Нове замовлення</NavLink>
           </nav>
@@ -69,6 +74,7 @@ export function App() {
           <Route path="/contracts/:id/edit" element={<ContractFormPage />} />
           <Route path="/contracts/:id/deliveries/new" element={<DeliveryPage />} />
           <Route path="/contracts/:id/shortfall" element={<ShortfallPage />} />
+          <Route path="/deliveries" element={<DeliveriesPage />} />
           <Route path="/audit" element={<AuditPage />} />
           <Route path="*" element={<div className="panel empty">Сторінку не знайдено. <Link to="/contracts">До списку</Link></div>} />
         </Routes>

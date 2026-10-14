@@ -1,15 +1,21 @@
 import {
-  Body, Controller, Delete, Param, ParseIntPipe, Post, UploadedFile, UseInterceptors,
+  Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { parseJsonField, uploadOptions } from '../common/multipart';
 import { DeliveriesService } from './deliveries.service';
-import { DeliveryDto } from './dto';
+import { DeliveryDto, DeliverySearchDto } from './dto';
 import { AuditContext, Ctx } from '../audit/audit-context';
 
 @Controller()
 export class DeliveriesController {
   constructor(private readonly deliveries: DeliveriesService) {}
+
+  /** Усі поставки з пошуком і фільтрами (сторінка «Поставки»). */
+  @Get('deliveries')
+  search(@Query() query: DeliverySearchDto) {
+    return this.deliveries.search(query);
+  }
 
   /** multipart/form-data: `data` — JSON з DeliveryInput, `file` — скан накладної (необов'язково). */
   @Post('contracts/:id/deliveries')

@@ -7,6 +7,7 @@ import { LoggerModule } from './logging/logger.module';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { EventsModule } from './events/events.module';
 import { HealthController } from './health/health.controller';
 import { ContractsController } from './contracts/contracts.controller';
 import { ContractsService } from './contracts/contracts.service';
@@ -21,7 +22,7 @@ const staticFront = fs.existsSync(config.webDist)
   : [];
 
 @Module({
-  imports: [LoggerModule, DatabaseModule, AuthModule, AuditModule, ...staticFront],
+  imports: [LoggerModule, DatabaseModule, AuthModule, AuditModule, EventsModule, ...staticFront],
   controllers: [HealthController, ContractsController, DeliveriesController, FilesController],
   providers: [ContractsService, DeliveriesService, FilesService, TelemetryShutdown],
 })

@@ -1,6 +1,6 @@
 import type {
-  AuditPage, AuditSearch, ContractDetails, ContractInput, ContractSearch, ContractSummary, CurrentUser, DeliveryInput,
-  ShortfallInput, ValidationErrorBody,
+  AuditPage, AuditSearch, ContractDetails, ContractInput, ContractList, ContractSearch, CurrentUser, DeliveryInput,
+  DeliveryList, DeliverySearch, ShortfallInput, ValidationErrorBody,
 } from '@order-tracking/shared';
 import { tabId } from './tracking';
 
@@ -66,7 +66,8 @@ const qs = (params: object) => {
 };
 
 export const api = {
-  search: (f: ContractSearch) => request<ContractSummary[]>('GET', `/contracts${qs(f)}`),
+  search: (f: ContractSearch) => request<ContractList>('GET', `/contracts${qs(f)}`),
+  deliveries: (f: DeliverySearch) => request<DeliveryList>('GET', `/deliveries${qs(f)}`),
   get: (id: number) => request<ContractDetails>('GET', `/contracts/${id}`),
   counterparties: () => request<string[]>('GET', '/contracts/counterparties'),
   create: (input: ContractInput) => request<ContractDetails>('POST', '/contracts', input),

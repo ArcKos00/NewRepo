@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { ContractDetails, ContractInput, ContractSummary } from '@order-tracking/shared';
+import type { ContractDetails, ContractInput, ContractList, DeliveryList } from '@order-tracking/shared';
 import { AppModule } from '../src/app.module';
 import { setupApp } from '../src/setup';
 import { config } from '../src/config';
@@ -150,7 +150,7 @@ describe('пошук', () => {
   });
 
   const found = async (query: Record<string, string>) =>
-    ((await http.get('/api/contracts').query(query).expect(200)).body as ContractSummary[]).map((x) => x.number);
+    ((await http.get('/api/contracts').query(query).expect(200)).body as ContractList).contracts.map((x) => x.number);
 
   it('за номером, контрагентом, найменуванням, датою і станом', async () => {
     expect(await found({ number: 'пс-7' })).toEqual(['ПС-7']);
@@ -160,6 +160,64 @@ describe('пошук', () => {
     expect(await found({ status: 'partial' })).toEqual(['Д-125/2026']);
     expect(await found({ item: '%' })).toEqual([]);
     expect(await found({})).toEqual(['Д-125/2026', 'ПС-7']);
+  });
+
+  it('одним полем: кожне слово — в номері, контрагенті або найменуванні', async () => {
+    expect(await found({ q: 'пс-7' })).toEqual(['ПС-7']);
+    expect(await found({ q: 'фарба' })).toEqual(['ПС-7']);
+    expect(await found({ q: 'постачальник болт' })).toEqual(['Д-125/2026']);
+    expect(await found({ q: 'іваненко болт' })).toEqual([]);
+    expect(await found({ q: 'іваненко', status: 'waiting' })).toEqual(['ПС-7']);
+  });
+
+  it('стан фільтрується в БД так само, як рахується (overdue, completed)', async () => {
+    const overdue = (await http.post('/api/contracts').send(contract({
+      number: 'ПР-1', contractDate: '2024-01-01', expectedDeliveryDate: '2024-02-01',
+      items: [{ name: 'Цвях', unit: 'шт', quantity: 5 }],
+    })).expect(201)).body as ContractDetails;
+    expect(overdue.status).toBe('overdue');
+    expect(await found({ status: 'overdue' })).toEqual(['ПР-1']);
+    await http.put(`/api/contracts/${overdue.id}/shortfall`)
+      .send({ expectedDeliveryDate: null, items: [{ orderItemId: overdue.items[0].id, cancelled: 5, cancelReason: 'знято' }] })
+      .expect(200);
+    expect(await found({ status: 'overdue' })).toEqual([]);
+    expect(await found({ status: 'completed' })).toEqual(['ПР-1']);
+    await http.delete(`/api/contracts/${overdue.id}`).expect(204);
+  });
+
+  it('сторінками: total — усього під фільтр', async () => {
+    const page = async (n: number) =>
+      (await http.get('/api/contracts').query({ page: n, pageSize: 1 }).expect(200)).body as ContractList;
+    const [p1, p2, p3] = [await page(1), await page(2), await page(3)];
+    expect([p1.total, p1.page, p1.pageSize]).toEqual([2, 1, 1]);
+    expect([...p1.contracts, ...p2.contracts].map((x) => x.number)).toEqual(['Д-125/2026', 'ПС-7']);
+    expect(p3.contracts).toEqual([]);
+    await http.get('/api/contracts').query({ pageSize: 101 }).expect(422);
+    await http.get('/api/contracts').query({ page: 0 }).expect(422);
+  });
+});
+
+describe('усі поставки', () => {
+  const found = async (query: Record<string, string> = {}) =>
+    ((await http.get('/api/deliveries').query(query).expect(200)).body as DeliveryList);
+
+  it('з договором і найменуваннями, пошук по всіх полях', async () => {
+    const all = await found();
+    expect(all.total).toBe(1);
+    expect(all.deliveries[0]).toMatchObject({
+      invoiceNumber: 'ВН-001',
+      contract: { id: c.id, number: 'Д-125/2026', counterparty: 'ТОВ "Постачальник"' },
+      lines: [{ name: 'Болт М8', unit: 'шт', quantity: 20 }],
+    });
+    const invoices = async (query: Record<string, string>) => (await found(query)).deliveries.map((d) => d.invoiceNumber);
+    expect(await invoices({ q: 'вн-001' })).toEqual(['ВН-001']);
+    expect(await invoices({ q: 'д-125 болт' })).toEqual(['ВН-001']);
+    expect(await invoices({ q: 'постачальник' })).toEqual(['ВН-001']);
+    // найменування є в договорі, але не в цій поставці
+    expect(await invoices({ q: 'шайба' })).toEqual([]);
+    expect(await invoices({ item: 'болт', counterparty: 'постач', number: '125', invoice: 'вн' })).toEqual(['ВН-001']);
+    expect(await invoices({ dateFrom: '2026-09-16' })).toEqual([]);
+    expect(await invoices({ dateFrom: '2026-09-15', dateTo: '2026-09-15' })).toEqual(['ВН-001']);
   });
 });
 

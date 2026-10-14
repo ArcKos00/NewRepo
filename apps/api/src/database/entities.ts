@@ -57,6 +57,8 @@ export class Delivery {
   @ManyToOne(() => Contract, (c) => c.deliveries, { onDelete: 'CASCADE' }) contract: Contract;
   @Column('date') date: string;
   @Column('text') invoiceNumber: string;
+  /** Нормалізована (UPPER у JS) копія номера накладної для пошуку */
+  @Column('text') invoiceSearch: string;
   @Column('int', { nullable: true }) fileId: number | null;
   @ManyToOne(() => StoredFile, { onDelete: 'SET NULL' }) @JoinColumn() file: StoredFile | null;
   @Column('text', { nullable: true }) notes: string | null;

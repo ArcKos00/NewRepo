@@ -11,7 +11,7 @@ import { startTelemetry, stopTelemetry } from './telemetry/index';
 export const telemetry = startTelemetry({
   serviceName: 'purchase',
   tracePaths: ['/api', '/auth'],
-  ignorePaths: ['/api/health', '/api/audit/events'],
+  ignorePaths: ['/api/health', '/api/audit/events', '/api/events'],
 });
 
 /** Дописує буфер у APM, коли процес зупиняють. */

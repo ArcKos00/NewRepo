@@ -70,11 +70,16 @@ export class ShortfallDto implements ShortfallInput {
 
 const STATUSES: ContractStatus[] = ['waiting', 'partial', 'overdue', 'completed'];
 
+export const PAGE_SIZE = 25;
+
 export class SearchDto implements ContractSearch {
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
   @IsOptional() @IsString() number?: string;
   @IsOptional() @IsString() counterparty?: string;
   @IsOptional() @IsString() item?: string;
   @IsOptional() @Matches(DATE) dateFrom?: string;
   @IsOptional() @Matches(DATE) dateTo?: string;
   @IsOptional() @IsIn(STATUSES) status?: ContractStatus;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
 }

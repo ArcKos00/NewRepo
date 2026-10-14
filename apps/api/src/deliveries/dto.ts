@@ -1,8 +1,8 @@
 import { Type } from 'class-transformer';
 import {
-  IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength, Min, ValidateNested,
+  IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested,
 } from 'class-validator';
-import type { DeliveryInput, DeliveryLine } from '@order-tracking/shared';
+import type { DeliveryInput, DeliveryLine, DeliverySearch } from '@order-tracking/shared';
 import { DATE } from '../contracts/dto';
 
 export class DeliveryLineDto implements DeliveryLine {
@@ -25,4 +25,16 @@ export class DeliveryDto implements DeliveryInput {
 
   @IsArray() @ValidateNested({ each: true }) @Type(() => DeliveryLineDto)
   lines: DeliveryLineDto[];
+}
+
+export class DeliverySearchDto implements DeliverySearch {
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsString() invoice?: string;
+  @IsOptional() @IsString() number?: string;
+  @IsOptional() @IsString() counterparty?: string;
+  @IsOptional() @IsString() item?: string;
+  @IsOptional() @Matches(DATE) dateFrom?: string;
+  @IsOptional() @Matches(DATE) dateTo?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
 }
