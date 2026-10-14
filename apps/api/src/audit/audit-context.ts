@@ -15,7 +15,7 @@ export interface AuditContext {
 
 /** Користувач діючої сесії; null — не увійшов або вхід прострочено. */
 export function currentUser(req: SessionRequest): SessionUser | null {
-  if (config.authDisabled) return DEV_USER;
+  if (config.authDisabled) return { ...DEV_USER, admin: config.devUserAdmin };
   const s = req.session;
   return s?.user && s.expiresAt && s.expiresAt > Date.now() ? s.user : null;
 }

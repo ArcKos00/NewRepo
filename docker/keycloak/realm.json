@@ -2,6 +2,11 @@
   "realm": "purchase",
   "enabled": true,
   "sslRequired": "none",
+  "roles": {
+    "client": {
+      "purchase": [{ "name": "admin", "description": "Журнал дій" }]
+    }
+  },
   "clients": [
     {
       "clientId": "purchase",
@@ -28,7 +33,8 @@
       "email": "dev@example.com",
       "firstName": "Тест",
       "lastName": "Розробник",
-      "credentials": [{ "type": "password", "value": "dev", "temporary": false }]
+      "credentials": [{ "type": "password", "value": "dev", "temporary": false }],
+      "clientRoles": { "purchase": ["admin"] }
     },
     {
       "username": "operator",

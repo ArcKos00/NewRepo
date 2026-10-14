@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
 import type { AuditPage } from '@order-tracking/shared';
 import type { SessionRequest } from '../auth/session';
+import { AdminOnly } from '../auth/auth.guard';
 import { auditContext } from './audit-context';
 import { AuditRecord, AuditService } from './audit.service';
 import { entityOfPath } from './audit.interceptor';
@@ -10,7 +11,9 @@ import { AuditSearchDto, UiEventBatchDto } from './dto';
 export class AuditController {
   constructor(private readonly audit: AuditService) {}
 
+  /** Журнал бачить лише адміністратор; писати кліки (events нижче) — усі. */
   @Get()
+  @AdminOnly()
   search(@Query() query: AuditSearchDto): Promise<AuditPage> {
     return this.audit.search(query);
   }

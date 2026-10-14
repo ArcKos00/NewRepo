@@ -1,4 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate, ExecutionContext, ForbiddenException, Injectable, SetMetadata, UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PinoLogger } from 'nestjs-pino';
 import { labelRequest } from '../telemetry/index';
@@ -8,6 +10,10 @@ import type { SessionRequest } from './session';
 const PUBLIC = 'auth:public';
 /** Маршрут доступний без входу (сам вхід). */
 export const Public = () => SetMetadata(PUBLIC, true);
+
+const ADMIN = 'auth:admin';
+/** Лише для адміністратора (роль ADMIN_ROLE у Keycloak). */
+export const AdminOnly = () => SetMetadata(ADMIN, true);
 
 /** Усе API — лише для тих, хто увійшов через Keycloak (або AUTH_DISABLED у розробці). */
 @Injectable()
@@ -28,6 +34,8 @@ export class AuthGuard implements CanActivate {
     }
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC, [ctx.getHandler(), ctx.getClass()])) return true;
     if (!user) throw new UnauthorizedException('Потрібно увійти');
+    if (this.reflector.getAllAndOverride<boolean>(ADMIN, [ctx.getHandler(), ctx.getClass()]) && !user.admin)
+      throw new ForbiddenException('Лише для адміністратора');
     return true;
   }
 }

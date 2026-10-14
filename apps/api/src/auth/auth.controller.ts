@@ -106,7 +106,9 @@ export class AuthController {
 
   private info(req: SessionRequest): CurrentUser {
     const u = currentUser(req)!;
-    return { id: u.id, username: u.username, displayName: u.displayName, expiresAt: req.session?.expiresAt ?? null };
+    return {
+      id: u.id, username: u.username, displayName: u.displayName, admin: !!u.admin, expiresAt: req.session?.expiresAt ?? null,
+    };
   }
 }
 

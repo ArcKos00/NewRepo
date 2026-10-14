@@ -237,6 +237,8 @@ export interface CurrentUser {
   id: string;
   username: string;
   displayName: string | null;
+  /** Адміністратор: бачить журнал дій */
+  admin: boolean;
   /** Коли вхід перестане діяти (epoch ms); null — без Keycloak (AUTH_DISABLED) */
   expiresAt: number | null;
 }

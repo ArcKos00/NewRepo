@@ -24,6 +24,8 @@
 # Вхід — через Keycloak, як у litopys. У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
 # (Client authentication ON), Standard flow + Direct Access Grants (форма входу застосунку);
 # Valid redirect URI https://purchase.gov.kub.k2.lan/auth/callback, post-logout https://purchase.gov.kub.k2.lan/.
+# Журнал дій бачать лише ті, кому в цьому клієнті призначено роль admin (Clients → <клієнт> → Roles;
+# назва — ADMIN_ROLE). Роль читається при вході: після призначення треба вийти й увійти знову.
 # SESSION_SECRET має бути сталим між викатками: сесії лежать у базі (таблиця sessions), і з новим секретом
 # кука sid перестане підписуватись — усіх викине на логін.
 #

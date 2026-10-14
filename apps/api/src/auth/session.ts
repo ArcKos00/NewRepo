@@ -6,6 +6,8 @@ export interface SessionUser {
   id: string;
   username: string;
   displayName: string | null;
+  /** Має роль адміністратора (ADMIN_ROLE) — бачить журнал дій. У сесіях до цієї зміни поля нема → не адмін. */
+  admin?: boolean;
 }
 
 declare module 'express-session' {
@@ -27,4 +29,4 @@ export type SessionRequest = Request & {
   session?: import('express-session').Session & Partial<import('express-session').SessionData>;
 };
 
-export const DEV_USER: SessionUser = { id: 'dev', username: 'dev', displayName: 'Розробник (AUTH_DISABLED)' };
+export const DEV_USER: SessionUser = { id: 'dev', username: 'dev', displayName: 'Розробник (AUTH_DISABLED)', admin: true };

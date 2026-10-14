@@ -109,7 +109,14 @@ function userFrom(res: Oidc.TokenEndpointResponse & Oidc.TokenEndpointResponseHe
   const displayName =
     str('name') ?? ([str('family_name'), str('given_name')].filter(Boolean).join(' ') || null);
   const username = str('preferred_username') ?? str('email') ?? str('sub') ?? 'unknown';
-  return { id: str('sub') ?? `username:${username}`, username, displayName };
+  return { id: str('sub') ?? `username:${username}`, username, displayName, admin: clientRoles(access).includes(config.adminRole) };
+}
+
+/** Ролі клієнта застосунку з access token (resource_access.<KEYCLOAK_CLIENT_ID>.roles). */
+export function clientRoles(token: Record<string, unknown>, clientId = config.keycloakClientId): string[] {
+  const access = token.resource_access as Record<string, { roles?: unknown }> | undefined;
+  const roles = access?.[clientId]?.roles;
+  return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === 'string') : [];
 }
 
 export function decodeJwtPayload(jwt: string): Record<string, unknown> {

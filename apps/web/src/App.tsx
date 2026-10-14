@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError } from './api';
 import { flush, startTracking, trackNavigation } from './tracking';
 import { useLiveUpdates } from './live';
+import { meQuery } from './user';
 import { LoadError, Loading } from './components/ui';
 import { ContractsPage } from './pages/ContractsPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
@@ -18,7 +19,7 @@ export function App() {
   const location = useLocation();
   const flash = (location.state as { flash?: string } | null)?.flash;
   const onLogin = location.pathname === '/login';
-  const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false, enabled: !onLogin, staleTime: Infinity });
+  const me = useQuery({ ...meQuery, enabled: !onLogin });
   const user = me.data;
 
   useLiveUpdates(!!user);
@@ -55,7 +56,7 @@ export function App() {
           <nav className="nav">
             <NavLink to="/contracts" end className="btn">Замовлення</NavLink>
             <NavLink to="/deliveries" className="btn">Поставки</NavLink>
-            <NavLink to="/audit" className="btn">Журнал</NavLink>
+            {user.admin && <NavLink to="/audit" className="btn">Журнал</NavLink>}
             <NavLink to="/contracts/new" className="btn primary">+ Нове замовлення</NavLink>
           </nav>
           <div className="user">
@@ -75,7 +76,7 @@ export function App() {
           <Route path="/contracts/:id/deliveries/new" element={<DeliveryPage />} />
           <Route path="/contracts/:id/shortfall" element={<ShortfallPage />} />
           <Route path="/deliveries" element={<DeliveriesPage />} />
-          <Route path="/audit" element={<AuditPage />} />
+          <Route path="/audit" element={user.admin ? <AuditPage /> : <div className="panel empty">Журнал дій доступний лише адміністратору.</div>} />
           <Route path="*" element={<div className="panel empty">Сторінку не знайдено. <Link to="/contracts">До списку</Link></div>} />
         </Routes>
       </main>

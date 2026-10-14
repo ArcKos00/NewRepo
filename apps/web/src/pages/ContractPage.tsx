@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { fdate, fq, fsize } from '../format';
 import { ConfirmButton, FormError, LoadError, Loading, ProgressBar, StatusPill } from '../components/ui';
+import { useMe } from '../user';
 
 export function ContractPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const me = useMe();
   const { data: c, error, isPending } = useQuery({ queryKey: ['contract', id], queryFn: () => api.get(id) });
 
   const removeContract = useMutation({
@@ -43,7 +45,7 @@ export function ContractPage() {
           <Link className="btn primary" to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
           <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
           <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
-          <Link className="btn" to={`/audit?contractId=${id}`}>Історія</Link>
+          {me?.admin && <Link className="btn" to={`/audit?contractId=${id}`}>Історія</Link>}
           <ConfirmButton confirmText="Точно видалити договір?" onConfirm={() => removeContract.mutate()} disabled={removeContract.isPending}>
             Видалити
           </ConfirmButton>
