@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { AuditKind, AuditSearch } from '@order-tracking/shared';
 import { api } from '../api';
 import { LoadError, Loading } from '../components/ui';
+import { Pagination, RangeText, useListParams } from '../components/listing';
 
 const KEYS = ['kind', 'actor', 'contractId', 'dateFrom', 'dateTo'] as const;
 
@@ -24,12 +25,12 @@ export function AuditPage() {
   const filters = Object.fromEntries(KEYS.map((k) => [k, params.get(k) ?? ''])) as AuditSearch;
   const [draft, setDraft] = useState(filters);
   const hasFilters = KEYS.some((k) => filters[k]);
+  const { page, setPage } = useListParams(KEYS);
 
-  const { data, error, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['audit', filters],
-    queryFn: ({ pageParam }) => api.audit({ ...filters, before: pageParam }),
-    initialPageParam: '',
-    getNextPageParam: (last) => (last.nextBefore ? String(last.nextBefore) : undefined),
+  const { data, error, isPending, isPlaceholderData } = useQuery({
+    queryKey: ['audit', filters, page],
+    queryFn: () => api.audit({ ...filters, page }),
+    placeholderData: keepPreviousData,
   });
 
   const submit = (e: FormEvent) => {
@@ -41,7 +42,6 @@ export function AuditPage() {
     setParams({});
   };
   const set = (k: keyof AuditSearch) => (e: { target: { value: string } }) => setDraft({ ...draft, [k]: e.target.value });
-  const entries = data?.pages.flatMap((p) => p.entries) ?? [];
 
   return (
     <>
@@ -68,15 +68,18 @@ export function AuditPage() {
         </div>
       </form>
 
-      {isPending ? <Loading /> : error ? <LoadError error={error} /> : entries.length === 0 ? (
+      {isPending ? <Loading /> : error ? <LoadError error={error} /> : data.total === 0 ? (
         <div className="panel empty">Записів немає.</div>
       ) : (
         <>
-          <div className="panel tbl-box">
+          <div className="list-meta">
+            <RangeText page={data.page} pageSize={data.pageSize} total={data.total} shown={data.entries.length} />
+          </div>
+          <div className={`panel tbl-box${isPlaceholderData ? ' stale' : ''}`} aria-busy={isPlaceholderData}>
             <table className="audit">
               <thead><tr><th>Коли</th><th>Хто</th><th>Що</th></tr></thead>
               <tbody>
-                {entries.map((e) => (
+                {data.entries.map((e) => (
                   <tr key={e.id} className={e.success ? (e.source === 'ui' ? 'ui' : undefined) : 'failed'}>
                     <td className="tight num small">{ftime(e.at)}</td>
                     <td className="small">
@@ -102,13 +105,7 @@ export function AuditPage() {
               </tbody>
             </table>
           </div>
-          {hasNextPage && (
-            <div className="actions">
-              <button className="btn" type="button" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
-                {isFetchingNextPage ? 'Завантаження…' : 'Показати ще'}
-              </button>
-            </div>
-          )}
+          <Pagination page={page} pageSize={data.pageSize} total={data.total} onPage={setPage} />
         </>
       )}
     </>

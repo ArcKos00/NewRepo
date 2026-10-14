@@ -18,7 +18,7 @@ export interface AuditRecord {
   details?: unknown;
 }
 
-const PAGE = 100;
+const PAGE_SIZE = 50;
 
 /** Які дії входять у групу фільтра журналу. */
 const KIND_SQL: Record<AuditKind, string> = {
@@ -92,11 +92,14 @@ export class AuditService {
     // Межі дня — за київським часом, як їх бачить користувач.
     if (f.dateFrom) qb.andWhere(`a.at >= CAST(CAST(:from AS date) AS timestamp) AT TIME ZONE 'Europe/Kyiv'`, { from: f.dateFrom });
     if (f.dateTo) qb.andWhere(`a.at < CAST(CAST(:to AS date) + 1 AS timestamp) AT TIME ZONE 'Europe/Kyiv'`, { to: f.dateTo });
-    if (f.before) qb.andWhere('a.id < :before', { before: f.before });
-    const rows = await qb.orderBy('a.id', 'DESC').limit(PAGE + 1).getMany();
-    const more = rows.length > PAGE;
-    const entries = rows.slice(0, PAGE).map(view);
-    return { entries, nextBefore: more ? entries[entries.length - 1].id : null };
+    const page = f.page ?? 1;
+    const pageSize = f.pageSize ?? PAGE_SIZE;
+    const [rows, total] = await qb
+      .orderBy('a.id', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+    return { entries: rows.map(view), total, page, pageSize };
   }
 }
 

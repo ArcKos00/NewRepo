@@ -203,14 +203,17 @@ export interface AuditSearch {
   contractId?: string;
   dateFrom?: string;
   dateTo?: string;
-  /** Курсор: записи з id менше за цей */
-  before?: string;
+  /** Сторінка, з 1 */
+  page?: number;
+  pageSize?: number;
 }
 
 export interface AuditPage {
   entries: AuditEntry[];
-  /** Курсор для наступної сторінки; null — більше немає */
-  nextBefore: number | null;
+  /** Скільки всього записів під фільтр */
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface UiEvent {

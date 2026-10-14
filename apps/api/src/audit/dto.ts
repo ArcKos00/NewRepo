@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, IsArray, IsIn, IsISO8601, IsOptional, IsString, Matches, MaxLength, ValidateNested,
+  ArrayMaxSize, IsArray, IsIn, IsInt, IsISO8601, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested,
 } from 'class-validator';
 import type { AuditKind, AuditSearch, UiEvent, UiEventBatch } from '@order-tracking/shared';
 import { DATE } from '../contracts/dto';
@@ -13,7 +13,8 @@ export class AuditSearchDto implements AuditSearch {
   @IsOptional() @Matches(/^\d{1,9}$/) contractId?: string;
   @IsOptional() @Matches(DATE) dateFrom?: string;
   @IsOptional() @Matches(DATE) dateTo?: string;
-  @IsOptional() @Matches(/^\d{1,18}$/) before?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) pageSize?: number;
 }
 
 export class UiEventDto implements UiEvent {

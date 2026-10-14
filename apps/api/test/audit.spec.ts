@@ -128,3 +128,18 @@ describe('доступ', () => {
     await http.get('/api/health/ready').expect(200, { status: 'ok' });
   });
 });
+
+describe('журнал сторінками', () => {
+  it('total під фільтр, сторінки без перетину, новіші — першими', async () => {
+    const page = async (n: number) =>
+      (await http.get('/api/audit').query({ kind: 'changes', page: n, pageSize: 2 }).expect(200)).body as AuditPage;
+    const [p1, p2] = [await page(1), await page(2)];
+    expect(p1.total).toBeGreaterThan(2);
+    expect([p1.page, p1.pageSize, p1.entries.length]).toEqual([1, 2, 2]);
+    const ids = [...p1.entries, ...p2.entries].map((e) => e.id);
+    expect(ids).toEqual([...ids].sort((a, b) => b - a));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect((await page(999)).entries).toEqual([]);
+    await http.get('/api/audit').query({ pageSize: 201 }).expect(422);
+  });
+});
