@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadOptions } from '../common/multipart';
+import { AuditContext, Ctx } from '../audit/audit-context';
 import { ContractsService } from './contracts.service';
 import { ContractDto, SearchDto, ShortfallDto } from './dto';
 
@@ -26,35 +27,39 @@ export class ContractsController {
   }
 
   @Post()
-  create(@Body() dto: ContractDto) {
-    return this.contracts.create(dto);
+  create(@Body() dto: ContractDto, @Ctx() ctx: AuditContext) {
+    return this.contracts.create(dto, ctx);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: ContractDto) {
-    return this.contracts.update(id, dto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: ContractDto, @Ctx() ctx: AuditContext) {
+    return this.contracts.update(id, dto, ctx);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.contracts.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Ctx() ctx: AuditContext) {
+    return this.contracts.remove(id, ctx);
   }
 
   @Put(':id/file')
   @UseInterceptors(FileInterceptor('file', uploadOptions))
-  setFile(@Param('id', ParseIntPipe) id: number, @UploadedFile() file: Express.Multer.File) {
-    return this.contracts.setFile(id, file);
+  setFile(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Ctx() ctx: AuditContext,
+  ) {
+    return this.contracts.setFile(id, file, ctx);
   }
 
   @Delete(':id/file')
-  removeFile(@Param('id', ParseIntPipe) id: number) {
-    return this.contracts.removeFile(id);
+  removeFile(@Param('id', ParseIntPipe) id: number, @Ctx() ctx: AuditContext) {
+    return this.contracts.removeFile(id, ctx);
   }
 
   /** Недопоставка ("не зможуть") та орієнтовна дата поставки */
   @Put(':id/shortfall')
-  updateShortfall(@Param('id', ParseIntPipe) id: number, @Body() dto: ShortfallDto) {
-    return this.contracts.updateShortfall(id, dto);
+  updateShortfall(@Param('id', ParseIntPipe) id: number, @Body() dto: ShortfallDto, @Ctx() ctx: AuditContext) {
+    return this.contracts.updateShortfall(id, dto, ctx);
   }
 }

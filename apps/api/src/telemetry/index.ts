@@ -1,13 +1,15 @@
 /** Перенесено з litopys (packages/telemetry): OpenTelemetry → Elastic APM (OTLP/HTTP, protobuf). */
-import type { ClientRequest, IncomingMessage } from 'node:http';
+import type { ClientRequest, IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
 import { hostname } from 'node:os';
-import { diag, type Span } from '@opentelemetry/api';
+import { type Attributes, diag, type Span } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { ExpressInstrumentation, ExpressLayerType } from '@opentelemetry/instrumentation-express';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
+import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
@@ -77,8 +79,9 @@ export function startTelemetry(
       [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: cfg.environment,
     }),
   );
+  const under = (url: string, p: string) => url === p || url.startsWith(`${p}?`) || url.startsWith(`${p}/`);
   const ignored = (url: string | undefined): boolean =>
-    !!url && cfg.ignorePaths.some((p) => url === p || url.startsWith(`${p}?`) || url.startsWith(`${p}/`));
+    !!url && (cfg.ignorePaths.some((p) => under(url, p)) || (!!cfg.tracePaths && !cfg.tracePaths.some((p) => under(url, p))));
 
   const captureBody = captureRequestBody(cfg.captureBodyMax);
   sdk = new NodeSDK({
@@ -102,10 +105,24 @@ export function startTelemetry(
         requestHook: (span, request) => {
           // whoever learns what the request is about labels the transaction through `labelRequest`
           rememberServerSpan(span, request);
+          if (cfg.captureHeaders) {
+            const headers = 'getHeaders' in request ? request.getHeaders() : request.headers;
+            span.setAttributes(headerAttributes('http.request.header', headers));
+          }
           // the body of a write, so a request that failed can be replayed from its trace (see `captureBody`)
           // /auth/* — ніколи: у тілі входу пароль
           if (cfg.captureBody && !('url' in request && request.url?.startsWith('/auth/'))) captureBody(span, request);
         },
+        ...(cfg.captureHeaders && {
+          responseHook: (span: Span, response: IncomingMessage | ServerResponse) => {
+            // для вхідних запитів хук викликається на старті, коли заголовків відповіді ще немає
+            if ('getHeaders' in response)
+              response.once('finish', () =>
+                span.setAttributes(headerAttributes('http.response.header', response.getHeaders())),
+              );
+            else span.setAttributes(headerAttributes('http.response.header', response.headers));
+          },
+        }),
         // the exporter's own POSTs must not become spans, or every export would export itself
         ignoreOutgoingRequestHook: (req) => {
           const path = typeof req.path === 'string' ? req.path : '';
@@ -117,6 +134,10 @@ export function startTelemetry(
       new NestInstrumentation(),
       // no query parameters in spans: rows carry personal data, the SQL text alone is enough
       new PgInstrumentation({ enhancedDatabaseReporting: false, requireParentSpan: true }),
+      // trace_id / span_id у кожному рядку логу (nestjs-pino)
+      new PinoInstrumentation(),
+      // event loop, GC, heap — метрики процесу
+      new RuntimeNodeInstrumentation(),
       new UndiciInstrumentation({
         ignoreRequestHook: (req) => req.path.endsWith('/v1/traces') || req.path.endsWith('/v1/metrics'),
       }),
@@ -129,6 +150,19 @@ export function startTelemetry(
       (cfg.traceSampleRatio !== null ? `, traces sampled at ${cfg.traceSampleRatio}` : ''),
   );
   return cfg;
+}
+
+const SECRET_HEADERS = new Set(['cookie', 'set-cookie', 'authorization', 'proxy-authorization']);
+
+/** Заголовки → атрибути спану; сесійна cookie і авторизація маскуються. */
+function headerAttributes(prefix: string, headers: IncomingHttpHeaders | OutgoingHttpHeaders): Attributes {
+  const attrs: Attributes = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (value === undefined) continue;
+    const key = name.toLowerCase();
+    attrs[`${prefix}.${key}`] = SECRET_HEADERS.has(key) ? '***' : Array.isArray(value) ? value.map(String) : String(value);
+  }
+  return attrs;
 }
 
 /**

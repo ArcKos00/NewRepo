@@ -107,3 +107,80 @@ export interface ValidationErrorBody {
   message: string;
   errors: Record<string, string>;
 }
+
+// ---------- Журнал дій (аудит) ----------
+
+/** api — дія на сервері (зміна даних, завантаження файлу, невдала спроба); ui — клік/перехід у браузері. */
+export type AuditSource = 'api' | 'ui';
+
+/** Групи для фільтра журналу. */
+export type AuditKind = 'changes' | 'deletes' | 'failed' | 'files' | 'ui';
+
+export interface AuditEntry {
+  id: number;
+  at: string;
+  source: AuditSource;
+  /** contract.create, delivery.delete, ui.click, request.failed, ... */
+  action: string;
+  success: boolean;
+  /** sub з Keycloak */
+  actorId: string | null;
+  /** ПІБ (логін) на момент дії */
+  actor: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  /** Вкладка браузера: зв'язує кліки з діями на сервері */
+  tabId: string | null;
+  traceId: string | null;
+  entityType: string | null;
+  entityId: number | null;
+  contractId: number | null;
+  /** Опис дії людською мовою */
+  summary: string;
+  /** Знімки "до/після", видалені дані, тіло невдалого запиту тощо */
+  details: unknown;
+}
+
+export interface AuditSearch {
+  kind?: AuditKind;
+  actor?: string;
+  contractId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  /** Курсор: записи з id менше за цей */
+  before?: string;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** Курсор для наступної сторінки; null — більше немає */
+  nextBefore: number | null;
+}
+
+export interface UiEvent {
+  type: 'click' | 'navigate';
+  /** Сторінка (pathname + search), на якій сталася подія */
+  path: string;
+  /** Підпис елемента, по якому клікнули */
+  target?: string;
+  /** Посилання, якщо клікнули по <a> */
+  href?: string;
+  /** Час у браузері (ISO) */
+  at: string;
+}
+
+/** Пакет подій з браузера. tabId — в тілі, бо sendBeacon не вміє заголовки. */
+export interface UiEventBatch {
+  tabId?: string | null;
+  events: UiEvent[];
+}
+
+/** Користувач поточної сесії (з токена Keycloak). */
+export interface CurrentUser {
+  /** `sub` з Keycloak */
+  id: string;
+  username: string;
+  displayName: string | null;
+  /** Коли вхід перестане діяти (epoch ms); null — без Keycloak (AUTH_DISABLED) */
+  expiresAt: number | null;
+}

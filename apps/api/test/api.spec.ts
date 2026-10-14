@@ -9,12 +9,7 @@ import { setupApp } from '../src/setup';
 import { config } from '../src/config';
 
 let app: INestApplication;
-/** Агент з cookie сесії (увійшов у beforeAll) */
-let http: ReturnType<typeof request.agent>;
-/** Без сесії */
-let anon: ReturnType<typeof request>;
-
-const LOGIN = { username: 'admin', password: 'test-password' };
+let http: ReturnType<typeof request>;
 
 beforeAll(async () => {
   const ds = await new DataSource({ type: 'postgres', url: config.databaseUrl }).initialize();
@@ -25,9 +20,7 @@ beforeAll(async () => {
   app = moduleRef.createNestApplication();
   setupApp(app);
   await app.init();
-  anon = request(app.getHttpServer());
-  http = request.agent(app.getHttpServer());
-  await http.post('/api/auth/login').send(LOGIN).expect(200);
+  http = request(app.getHttpServer());
 });
 
 afterAll(async () => {
@@ -53,33 +46,6 @@ const delivery = (id: number, lines: { orderItemId: number; quantity: number }[]
     .field('data', JSON.stringify({ date: '2026-09-15', invoiceNumber, notes: null, lines }));
 
 let c: ContractDetails;
-
-describe('вхід', () => {
-  it('без сесії API недоступне, health — доступне', async () => {
-    await anon.get('/api/contracts').expect(401);
-    await anon.get('/api/health').expect(200);
-    await anon.get('/api/health/ready').expect(200);
-  });
-
-  it('невірний пароль → 401, cookie не видається', async () => {
-    const res = await anon.post('/api/auth/login').send({ ...LOGIN, password: 'nope' }).expect(401);
-    expect(res.headers['set-cookie']).toBeUndefined();
-  });
-
-  it('вхід видає httpOnly-cookie, /me повертає користувача', async () => {
-    const res = await anon.post('/api/auth/login').send(LOGIN).expect(200);
-    expect(res.body).toEqual({ username: 'admin' });
-    const cookie = res.headers['set-cookie'][0];
-    expect(cookie).toMatch(/HttpOnly/);
-    expect(cookie).toMatch(/SameSite=Strict/);
-    await anon.get('/api/auth/me').set('Cookie', cookie).expect(200, { username: 'admin' });
-  });
-
-  it('підроблена cookie не приймається', async () => {
-    const forged = Buffer.from(JSON.stringify({ username: 'admin', exp: Date.now() + 1e6 })).toString('base64url');
-    await anon.get('/api/auth/me').set('Cookie', `purchase_session=${forged}.AAAA`).expect(401);
-  });
-});
 
 describe('повний цикл замовлення', () => {
   it('створює договір з найменуваннями', async () => {
@@ -204,48 +170,5 @@ describe('видалення', () => {
     await http.delete(`/api/contracts/${c.id}`).expect(204);
     await http.get(`/api/contracts/${c.id}`).expect(404);
     expect(fs.readdirSync(config.uploadsDir)).toEqual([]);
-  });
-});
-
-describe('журнал дій', () => {
-  const rows = (where = '') => app.get(DataSource).query(`SELECT * FROM audit_log ${where} ORDER BY id`);
-
-  it('записує дії користувача з деталями, без паролів', async () => {
-    const all = await rows();
-    const actions = all.map((r: { action: string }) => r.action);
-    expect(actions).toEqual(expect.arrayContaining([
-      'auth.login', 'contract.create', 'contract.file.upload', 'delivery.create', 'contract.shortfall.update',
-      'contract.update', 'contract.search', 'contract.view', 'delivery.delete', 'contract.delete', 'file.download',
-    ]));
-    expect(actions).not.toContain('AuthController.me');
-
-    const [failed] = await rows(`WHERE action = 'auth.login' AND NOT success`);
-    expect(failed).toMatchObject({ username: 'admin', status_code: 401 });
-    expect(failed.details.body.password).toBe('***');
-
-    const [created] = await rows(`WHERE action = 'contract.create' AND success`);
-    expect(created).toMatchObject({ username: 'admin', method: 'POST', status_code: 201, entity_type: 'contract' });
-    expect(created.entity_id).toMatch(/^\d+$/);
-    expect(created.details.body.number).toBe('Д-125/2026');
-
-    const [rejected] = await rows(`WHERE action = 'delivery.create' AND status_code = 422`);
-    expect(rejected.details.error.errors).toBeDefined();
-    expect(rejected.details.body.data.invoiceNumber).toBe('ВН-002');
-
-    const [upload] = await rows(`WHERE action = 'contract.file.upload'`);
-    expect(upload.details.file).toEqual({ name: 'Договір 125.pdf', size: 3 });
-  });
-});
-
-describe('захист від перебору', () => {
-  it('після MAX_FAILED_LOGINS невдалих спроб — 429 навіть з правильним паролем', async () => {
-    // ліміт у тестах — 3 (лічильник скинуто успішним входом вище)
-    for (let i = 0; i < 3; i++) await anon.post('/api/auth/login').send({ ...LOGIN, password: 'x' }).expect(401);
-    await anon.post('/api/auth/login').send(LOGIN).expect(429);
-  });
-
-  it('вихід скидає cookie', async () => {
-    await http.post('/api/auth/logout').expect(204);
-    await http.get('/api/contracts').expect(401);
   });
 });

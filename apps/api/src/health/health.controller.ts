@@ -1,10 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { Audit } from '../audit/audit.decorator';
-import { Public } from '../auth/public.decorator';
+import { Public } from '../auth/auth.guard';
 
-/** Проби Kubernetes: без входу, без журналу, без спанів (див. telemetry.ts). */
+/** Проби Kubernetes: без входу, без журналу, без спанів і логів запитів (див. telemetry.ts, logger.module.ts). */
 @Public()
 @Controller('health')
 export class HealthController {
@@ -12,14 +11,12 @@ export class HealthController {
 
   /** liveness: процес живий */
   @Get()
-  @Audit(false)
   live() {
     return { status: 'ok' };
   }
 
   /** readiness: є з'єднання з БД */
   @Get('ready')
-  @Audit(false)
   async ready() {
     await this.ds.query('SELECT 1');
     return { status: 'ok' };

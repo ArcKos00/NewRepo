@@ -12,12 +12,28 @@
 #     apply нічого не змінює, а старий образ на вузлі лишається старим);
 #   * якщо тег той самий — `kubectl -n ${NAMESPACE} rollout restart deploy/purchase`.
 #
-# Один образ (order-tracking/Dockerfile) і один контейнер: NestJS на порту 3000 віддає /api/* і роздає
+# Один образ (Dockerfile у корені репозиторію) і один контейнер: NestJS на порту 3000 віддає /api/* і роздає
 # зібраний фронт (apps/web/dist). Схему БД застосунок накочує сам на старті (TypeORM migrationsRun).
 #
 # Секрет purchase-secret створюється руками, у yaml його немає. БД — окремий інстанс на local.storage:
 #     kubectl -n ${NAMESPACE} create secret generic purchase-secret \
-#       --from-literal=DATABASE_URL='postgres://purchase:<пароль>@local.storage:5437/purchase'
+#       --from-literal=DATABASE_URL='postgres://purchase:<пароль>@local.storage:5437/purchase' \
+#       --from-literal=KEYCLOAK_CLIENT_SECRET='<secret клієнта purchase у Keycloak>' \
+#       --from-literal=SESSION_SECRET="$(openssl rand -hex 32)"
+#
+# Вхід — через Keycloak, як у litopys. У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
+# (Client authentication ON), Standard flow + Direct Access Grants (форма входу застосунку);
+# Valid redirect URI https://purchase.gov.kub.k2.lan/auth/callback, post-logout https://purchase.gov.kub.k2.lan/.
+# SESSION_SECRET має бути сталим між викатками: сесії лежать у базі (таблиця sessions), і з новим секретом
+# кука sid перестане підписуватись — усіх викине на логін.
+#
+# Журнал дій (хто що змінив/видалив/куди клікнув) — таблиця audit_log у тій самій БД, сторінка «Журнал».
+# Записи лише додаються (тригер забороняє UPDATE/DELETE). Кліки ростуть швидко; чистка старих — свідомо,
+# власником таблиці, з вимкненим тригером audit_log_append_only. Журнал попередньої версії (вхід
+# admin:admin), якщо її викатували, збережено в audit_log_v1.
+#
+# Логи — JSON у stdout (з trace_id/span_id і користувачем); трейси й метрики — OTLP в Elastic APM
+# (apm-server.infrastructure, без токена — як у решти сервісів кластера).
 #
 # Вкладені файли (скани договорів/накладних) лежать на PVC purchase-uploads (RWO). Том RWO, тож
 # RollingUpdate працює через podAffinity до власного вузла (див. Deployment).
@@ -35,6 +51,27 @@ data:
   UPLOADS_DIR: "/app/data/uploads"
   # Максимальний розмір одного файлу, МБ.
   MAX_UPLOAD_MB: "50"
+  LOG_LEVEL: "info"
+  # Keycloak (як у litopys). Issuer — рівно той рядок, що стоїть в `iss` токенів.
+  KEYCLOAK_ISSUER: "https://auth.infrastructure.kub.k2.lan/realms/k2"   # TODO: звірити з litopys
+  KEYCLOAK_CLIENT_ID: "purchase"                                        # TODO: id клієнта в Keycloak
+  # Куди браузер повертається після логіну (redirect URI = PUBLIC_URL/auth/callback); https → secure-кука.
+  PUBLIC_URL: "https://purchase.gov.kub.k2.lan"
+  # Скільки годин живе один вхід (не подовжується).
+  SESSION_MAX_HOURS: "12"
+  AUTH_DISABLED: "false"
+  # OpenTelemetry → Elastic APM (OTLP/HTTP): трейси, метрики, логи.
+  OTEL_SERVICE_NAME: "purchase"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://apm-server.infrastructure.svc.cluster.local:8200"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_EXPORTER_OTLP_TIMEOUT: "10000"
+  OTEL_RESOURCE_ATTRIBUTES: "group=gov"
+  # Усі заголовки HTTP-запиту/відповіді — в атрибути спанів (cookie/authorization маскуються).
+  OTEL_CAPTURE_HEADERS: "true"
+  # Тіла POST/PUT/DELETE (JSON) у трейсах — невдалий запис можна повторити з трейсу (тіло входу /auth/* — ніколи).
+  OTEL_CAPTURE_BODY: "true"
+  # Середовище в APM
+  ELASTIC_APM_ENVIRONMENT: "${NAMESPACE}"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -125,37 +162,39 @@ spec:
             - configMapRef:
                 name: purchase-config
             - secretRef:
-                name: purchase-secret         # DATABASE_URL
+                name: purchase-secret         # DATABASE_URL, KEYCLOAK_CLIENT_SECRET, SESSION_SECRET
           env:
             # Стеля V8-heap (~75 % від limits.memory), щоб Node не брав дефолт з розміру ноди.
             - name: NODE_OPTIONS
               value: "--max-old-space-size=384"
+            - name: APP_VERSION
+              value: "${IMAGE_TAG}"
           volumeMounts:
             - name: uploads
               mountPath: /app/data/uploads
           ports:
             - name: http
               containerPort: 3000
-          # Окремих health-ендпоінтів у застосунку немає. Порт починає слухати лише після підключення
-          # до БД і прогону міграцій, тож startup/liveness — статичний `/` (index.html, без БД), а
-          # readiness — легкий запит у БД (список контрагентів): без БД под краще тримати поза Service.
+          # Порт починає слухати лише після підключення до БД і прогону міграцій. startup/liveness —
+          # /api/health (процес живий, без БД), readiness — /api/health/ready (SELECT 1): без БД под
+          # краще тримати поза Service. Проби не потребують входу, не пишуться в журнал і не трасуються.
           startupProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 36
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/contracts/counterparties
+              path: /api/health/ready
               port: http
             periodSeconds: 15
             timeoutSeconds: 5

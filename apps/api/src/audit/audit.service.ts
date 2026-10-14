@@ -65,10 +65,13 @@ export class AuditService {
     // Дублюємо в лог пода (лише серверні дії, без кліків): видно в kubectl logs / Elastic навіть без БД.
     for (const row of rows)
       if (row.source === 'api')
-        this.log.log(JSON.stringify({
-          audit: row.action, ok: row.success, actor: row.actor, ip: row.ip, contractId: row.contractId,
-          entity: row.entityType && `${row.entityType}:${row.entityId}`, summary: row.summary, traceId: row.traceId,
-        }));
+        this.log.log(
+          {
+            audit: row.action, ok: row.success, actor: row.actor, actorId: row.actorId, ip: row.ip,
+            contractId: row.contractId, entity: row.entityType && `${row.entityType}:${row.entityId}`,
+          },
+          row.summary,
+        );
   }
 
   /** Запис, що не має зірвати основну дію (завантаження файлу, невдала спроба): помилку лише логуємо. */

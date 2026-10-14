@@ -19,6 +19,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://orders:orders@db:5432/orders
+      # Без Keycloak (усе від dev-користувача). З Keycloak — KEYCLOAK_* / PUBLIC_URL / SESSION_SECRET,
+      # див. apps/api/.env.example, або запуск для розробки через docker-compose.dev.yml.
+      AUTH_DISABLED: "true"
+      NODE_ENV: development   # AUTH_DISABLED при production заборонено
+      # Трейси/логи/метрики в Elastic APM (або OTel Collector). Порожньо — вимкнено.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
     ports:
       - "3000:3000"
     volumes:

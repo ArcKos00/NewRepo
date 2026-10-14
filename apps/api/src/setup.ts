@@ -1,20 +1,36 @@
-import { INestApplication, Logger as NestLogger } from '@nestjs/common';
+import { INestApplication, RequestMethod } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import cookieParser from 'cookie-parser';
+import session from 'express-session';
 import { Logger } from 'nestjs-pino';
 import { config } from './config';
 import { validationPipe } from './common/validation';
+import { PgSessionStore } from './auth/pg-session.store';
 
 /** Спільне налаштування для main.ts і тестів. */
 export function setupApp(app: INestApplication) {
   app.useLogger(app.get(Logger));
-  // За ingress: справжня IP клієнта — з X-Forwarded-For, але лише від проксі з приватних мереж.
+  // За ingress: req.ip — адреса клієнта з X-Forwarded-For, req.secure — з X-Forwarded-Proto (лише від довірених проксі).
   (app as NestExpressApplication).set('trust proxy', config.trustProxy);
-  app.use(cookieParser());
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: [{ path: 'auth/{*path}', method: RequestMethod.ALL }] });
   app.useGlobalPipes(validationPipe);
-  app.enableShutdownHooks();
 
-  if (config.auth.sessionSecretGenerated)
-    new NestLogger('Auth').warn('SESSION_SECRET не задано — сесії скинуться після перезапуску');
+  if (!config.authDisabled) {
+    app.use(
+      session({
+        name: 'sid',
+        store: app.get(PgSessionStore),
+        secret: config.sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        rolling: false,
+        // Кука живе рівно стільки, скільки дозволено одному входу, і не подовжується.
+        cookie: {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: config.publicUrl.startsWith('https://'),
+          maxAge: config.sessionMaxHours * 3_600_000,
+        },
+      }),
+    );
+  }
 }

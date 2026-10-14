@@ -123,3 +123,14 @@ dl.meta dt { color: var(--muted); }
 dl.meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 520px) { dl.meta { grid-template-columns: 1fr; gap: 2px; } dl.meta dd { margin-bottom: 8px; } }
 .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+
+/* Вхід */
+.login { max-width: 360px; width: 100%; margin: 40px auto 0; display: grid; gap: 12px; }
+
+/* Журнал дій */
+.topbar .user { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
+table.audit tr.failed td { background: var(--danger-soft); }
+table.audit tr.ui td { color: var(--muted); }
+table.audit pre { max-height: 360px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin: 6px 0 0; font-family: var(--font-num); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+table.audit code { font-family: var(--font-num); font-size: .78rem; }
+table.audit details summary { cursor: pointer; color: var(--accent); margin-top: 4px; }

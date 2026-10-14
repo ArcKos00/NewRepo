@@ -18,7 +18,7 @@ type Req = IncomingMessage & { originalUrl?: string };
       assignResponse: true,
       pinoHttp: {
         level: config.logLevel,
-        base: { service: process.env.OTEL_SERVICE_NAME ?? 'purchase' },
+        base: { service: process.env.OTEL_SERVICE_NAME ?? process.env.ELASTIC_APM_SERVICE_NAME ?? 'purchase' },
         transport: config.logPretty ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
         redact: { paths: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'], censor: '***' },
         genReqId: (req, res) => {
@@ -26,8 +26,14 @@ type Req = IncomingMessage & { originalUrl?: string };
           res.setHeader('X-Request-Id', id);
           return id;
         },
-        // Статика фронту і проби — без логів запитів.
-        autoLogging: { ignore: (req) => { const url = (req as Req).originalUrl ?? req.url ?? ''; return url.startsWith('/api/health') || !url.startsWith('/api/'); } },
+        // Статика фронту, проби і пакети кліків з браузера — без логів запитів.
+        autoLogging: {
+          ignore: (req) => {
+            const url = (req as Req).originalUrl ?? req.url ?? '';
+            if (url.startsWith('/api/health') || url.startsWith('/api/audit/events')) return true;
+            return !url.startsWith('/api/') && !url.startsWith('/auth/');
+          },
+        },
         customLogLevel: (_req, res: ServerResponse, err) =>
           err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
         customSuccessMessage: (req, res: ServerResponse, time) => `${req.method} ${(req as Req).originalUrl ?? req.url} ${res.statusCode} ${Math.round(time)}ms`,

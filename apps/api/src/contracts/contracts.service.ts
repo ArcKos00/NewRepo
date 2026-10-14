@@ -6,7 +6,10 @@ import { Contract, Delivery, OrderItem, StoredFile } from '../database/entities'
 import { orNull, qty, round3, searchText, today } from '../common/text';
 import { fail } from '../common/validation';
 import { FilesService } from '../files/files.service';
-import { details, loadItems, summary } from './contract-view';
+import { AuditService } from '../audit/audit.service';
+import type { AuditContext } from '../audit/audit-context';
+import { contractChanges, contractLabel, itemLine, joinChanges, shortfallChanges } from '../audit/describe';
+import { details, fileInfo, loadItems, summary } from './contract-view';
 import { ContractDto, SearchDto, ShortfallDto } from './dto';
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (ch) => `\\${ch}`);
@@ -16,6 +19,7 @@ export class ContractsService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly files: FilesService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Договір з блокуванням рядка (FOR UPDATE) — щоб паралельні зміни не порушили залишки. */
@@ -92,7 +96,7 @@ export class ContractsService {
     return { name: i.name.trim(), nameSearch: searchText(i.name), unit: i.unit.trim(), quantity: round3(i.quantity) };
   }
 
-  async create(dto: ContractDto): Promise<ContractDetails> {
+  async create(dto: ContractDto, ctx: AuditContext): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       const errors = await this.checkCommon(em, dto);
       dto.items.forEach((row, i) => {
@@ -104,13 +108,23 @@ export class ContractsService {
       this.applyHeader(c, dto);
       await em.save(c);
       await em.save(OrderItem, dto.items.map((i) => em.create(OrderItem, { contractId: c.id, ...this.itemFields(i) })));
-      return details(em, c, today());
+      const after = await details(em, c, today());
+      await this.audit.record(em, ctx, {
+        action: 'contract.create',
+        entityType: 'contract',
+        entityId: c.id,
+        contractId: c.id,
+        summary: `Створено договір ${contractLabel(c)}: ${after.items.map((i) => itemLine(i, i.quantity)).join('; ')}`,
+        details: { after },
+      });
+      return after;
     });
   }
 
-  async update(id: number, dto: ContractDto): Promise<ContractDetails> {
+  async update(id: number, dto: ContractDto, ctx: AuditContext): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
+      const before = await details(em, c, today());
       const existing = new Map((await loadItems(em, [id])).get(id)!.map((i) => [i.id, i]));
       const errors = await this.checkCommon(em, dto, id);
 
@@ -141,13 +155,24 @@ export class ContractsService {
         if (row.id) await em.update(OrderItem, { id: row.id }, this.itemFields(row));
         else await em.save(OrderItem, em.create(OrderItem, { contractId: id, ...this.itemFields(row) }));
       }
-      return details(em, c, today());
+      const after = await details(em, c, today());
+      await this.audit.record(em, ctx, {
+        action: 'contract.update',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary: joinChanges(`Змінено договір ${contractLabel(before)}`, contractChanges(before, after)),
+        details: { before, after },
+      });
+      return after;
     });
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, ctx: AuditContext): Promise<void> {
     const files = await this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
+      // Повний знімок перед видаленням: з журналу договір можна відновити вручну.
+      const before = await details(em, c, today());
       const deliveries = await em.find(Delivery, { where: { contractId: id } });
       const fileIds = [c.fileId, ...deliveries.map((d) => d.fileId)].filter((x): x is number => !!x);
       const files = fileIds.length ? await em.findBy(StoredFile, { id: In(fileIds) }) : [];
@@ -155,6 +180,16 @@ export class ContractsService {
       await em.delete(Delivery, { contractId: id });
       await em.delete(Contract, { id });
       if (files.length) await em.delete(StoredFile, { id: In(fileIds) });
+      await this.audit.record(em, ctx, {
+        action: 'contract.delete',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary:
+          `Видалено договір ${contractLabel(before)} від ${before.contractDate.split('-').reverse().join('.')}: ` +
+          `найменувань ${before.items.length}, поставок ${before.deliveries.length}, файлів ${files.length}`,
+        details: { before },
+      });
       return files;
     });
     this.files.removeFromDisk(files);
@@ -162,7 +197,7 @@ export class ContractsService {
 
   // ---------- Файл договору ----------
 
-  async setFile(id: number, upload: Express.Multer.File | undefined): Promise<ContractDetails> {
+  async setFile(id: number, upload: Express.Multer.File | undefined, ctx: AuditContext): Promise<ContractDetails> {
     if (!upload) fail({ file: 'Оберіть файл' });
     let old: StoredFile | null = null;
     const result = await this.ds.transaction(async (em) => {
@@ -172,13 +207,24 @@ export class ContractsService {
       c.fileId = file.id;
       await em.save(c);
       if (old) await em.delete(StoredFile, { id: old.id });
+      const replaced: StoredFile | null = old;
+      await this.audit.record(em, ctx, {
+        action: 'contract.file.set',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary:
+          `Договір ${contractLabel(c)}: завантажено файл «${file.originalName}»` +
+          (replaced ? ` замість «${replaced.originalName}»` : ''),
+        details: { file: fileInfo(file), replaced: fileInfo(replaced) },
+      });
       return details(em, c, today());
     });
     this.files.removeFromDisk([old]);
     return result;
   }
 
-  async removeFile(id: number): Promise<ContractDetails> {
+  async removeFile(id: number, ctx: AuditContext): Promise<ContractDetails> {
     let old: StoredFile | null = null;
     const result = await this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
@@ -186,6 +232,15 @@ export class ContractsService {
       c.fileId = null;
       await em.save(c);
       if (old) await em.delete(StoredFile, { id: old.id });
+      const removed: StoredFile | null = old;
+      await this.audit.record(em, ctx, {
+        action: 'contract.file.remove',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary: `Договір ${contractLabel(c)}: прибрано файл ${removed ? `«${removed.originalName}»` : '(його не було)'}`,
+        details: { removed: fileInfo(removed) },
+      });
       return details(em, c, today());
     });
     this.files.removeFromDisk([old]);
@@ -194,9 +249,10 @@ export class ContractsService {
 
   // ---------- Недопоставка / орієнтовна дата ----------
 
-  async updateShortfall(id: number, dto: ShortfallDto): Promise<ContractDetails> {
+  async updateShortfall(id: number, dto: ShortfallDto, ctx: AuditContext): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
+      const before = await details(em, c, today());
       const items = new Map((await loadItems(em, [id])).get(id)!.map((i) => [i.id, i]));
       const errors: Record<string, string> = {};
       dto.items.forEach((row, i) => {
@@ -219,7 +275,16 @@ export class ContractsService {
           cancelReason: cancelled > 0 ? orNull(row.cancelReason) : null,
         });
       }
-      return details(em, c, today());
+      const after = await details(em, c, today());
+      await this.audit.record(em, ctx, {
+        action: 'contract.shortfall',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary: joinChanges(`Недопоставка / дата, договір ${contractLabel(c)}`, shortfallChanges(before, after)),
+        details: { before, after },
+      });
+      return after;
     });
   }
 }

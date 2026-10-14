@@ -6,7 +6,10 @@ import { Contract, Delivery, DeliveryLine, StoredFile } from '../database/entiti
 import { orNull, qty, round3, today } from '../common/text';
 import { fail } from '../common/validation';
 import { FilesService } from '../files/files.service';
-import { details, loadItems } from '../contracts/contract-view';
+import { details, fileInfo, loadItems } from '../contracts/contract-view';
+import { AuditService } from '../audit/audit.service';
+import type { AuditContext } from '../audit/audit-context';
+import { contractLabel, fmtDate, itemLine } from '../audit/describe';
 import { DeliveryDto } from './dto';
 
 @Injectable()
@@ -14,10 +17,11 @@ export class DeliveriesService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly files: FilesService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Додає поставку. Скан накладної (необов'язковий) приходить разом із даними. */
-  async create(contractId: number, dto: DeliveryDto, upload?: Express.Multer.File): Promise<ContractDetails> {
+  async create(contractId: number, dto: DeliveryDto, ctx: AuditContext, upload?: Express.Multer.File): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       // Блокуємо договір, щоб дві одночасні поставки не перевищили "очікуємо".
       const c = await em.findOne(Contract, { where: { id: contractId }, lock: { mode: 'pessimistic_write' } });
@@ -43,7 +47,7 @@ export class DeliveriesService {
       if (Object.keys(errors).length) fail(errors);
 
       const file = upload ? await this.files.save(em, upload) : null;
-      await em.save(Delivery, em.create(Delivery, {
+      const delivery = await em.save(Delivery, em.create(Delivery, {
         contractId,
         date: dto.date,
         invoiceNumber: dto.invoiceNumber.trim(),
@@ -51,19 +55,52 @@ export class DeliveriesService {
         fileId: file?.id ?? null,
         lines: lines.map((l) => em.create(DeliveryLine, l)),
       }));
+      const described = lines.map((l) => ({ ...l, ...describeItem(items.get(l.orderItemId)!) }));
+      await this.audit.record(em, ctx, {
+        action: 'delivery.create',
+        entityType: 'delivery',
+        entityId: delivery.id,
+        contractId,
+        summary:
+          `Додано поставку за накладною № ${delivery.invoiceNumber} від ${fmtDate(delivery.date)}, ` +
+          `договір ${contractLabel(c)}: ${described.map((l) => itemLine(l, l.quantity)).join('; ')}` +
+          (file ? `; скан «${file.originalName}»` : ''),
+        details: {
+          delivery: { id: delivery.id, date: delivery.date, invoiceNumber: delivery.invoiceNumber, notes: delivery.notes, file: fileInfo(file), lines: described },
+        },
+      });
       return details(em, c, today());
     });
   }
 
-  async remove(id: number): Promise<{ contractId: number }> {
+  async remove(id: number, ctx: AuditContext): Promise<{ contractId: number }> {
     const { contractId, file } = await this.ds.transaction(async (em) => {
-      const d = await em.findOne(Delivery, { where: { id }, relations: { file: true } });
+      const d = await em.findOne(Delivery, { where: { id }, relations: { file: true, lines: true } });
       if (!d) throw new NotFoundException('Поставку не знайдено');
+      const c = await em.findOneByOrFail(Contract, { id: d.contractId });
+      const items = new Map((await loadItems(em, [d.contractId])).get(d.contractId)!.map((i) => [i.id, i]));
       await em.delete(Delivery, { id });
       if (d.fileId) await em.delete(StoredFile, { id: d.fileId });
+      // Знімок видаленої поставки — з назвами найменувань, щоб журнал читався й без договору.
+      const lines = d.lines.map((l) => ({ orderItemId: l.orderItemId, quantity: l.quantity, ...describeItem(items.get(l.orderItemId)) }));
+      await this.audit.record(em, ctx, {
+        action: 'delivery.delete',
+        entityType: 'delivery',
+        entityId: id,
+        contractId: d.contractId,
+        summary:
+          `Видалено поставку за накладною № ${d.invoiceNumber} від ${fmtDate(d.date)}, ` +
+          `договір ${contractLabel(c)}: ${lines.map((l) => itemLine(l, l.quantity)).join('; ')}` +
+          (d.file ? `; скан «${d.file.originalName}»` : ''),
+        details: {
+          before: { id: d.id, date: d.date, invoiceNumber: d.invoiceNumber, notes: d.notes, createdAt: d.createdAt, file: fileInfo(d.file), lines },
+        },
+      });
       return { contractId: d.contractId, file: d.file };
     });
     this.files.removeFromDisk([file]);
     return { contractId };
   }
 }
+
+const describeItem = (i?: { name: string; unit: string }) => ({ name: i?.name ?? '?', unit: i?.unit ?? '' });

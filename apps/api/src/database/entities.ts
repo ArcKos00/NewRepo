@@ -75,4 +75,28 @@ export class DeliveryLine {
   @Column('numeric', { precision: 14, scale: 3, transformer: numeric }) quantity: number;
 }
 
-export const entities = [StoredFile, Contract, OrderItem, Delivery, DeliveryLine];
+/**
+ * Журнал дій: хто, коли і що зробив. Без зовнішніх ключів — запис переживає видалення договору.
+ * Лише додавання: UPDATE/DELETE заборонені тригером (див. міграцію).
+ */
+@Entity('audit_log')
+export class AuditLog {
+  @PrimaryGeneratedColumn({ type: 'bigint' }) id: string;
+  @CreateDateColumn({ type: 'timestamptz' }) at: Date;
+  @Column('text') source: 'api' | 'ui';
+  @Column('text') action: string;
+  @Column('boolean', { default: true }) success: boolean;
+  @Column('text', { nullable: true }) actorId: string | null;
+  @Column('text', { nullable: true }) actor: string | null;
+  @Column('text', { nullable: true }) ip: string | null;
+  @Column('text', { nullable: true }) userAgent: string | null;
+  @Column('text', { nullable: true }) tabId: string | null;
+  @Column('text', { nullable: true }) traceId: string | null;
+  @Column('text', { nullable: true }) entityType: string | null;
+  @Column('int', { nullable: true }) entityId: number | null;
+  @Column('int', { nullable: true }) contractId: number | null;
+  @Column('text') summary: string;
+  @Column('jsonb', { nullable: true }) details: object | null;
+}
+
+export const entities = [StoredFile, Contract, OrderItem, Delivery, DeliveryLine, AuditLog];

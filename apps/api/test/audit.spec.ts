@@ -121,4 +121,10 @@ describe('доступ', () => {
     await http.delete('/api/deliveries/1').expect(401);
     await http.get('/auth/me').expect(401);
   });
+
+  it('проби health доступні без входу', async () => {
+    config.authDisabled = false;
+    await http.get('/api/health').expect(200, { status: 'ok' });
+    await http.get('/api/health/ready').expect(200, { status: 'ok' });
+  });
 });

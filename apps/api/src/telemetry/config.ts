@@ -10,6 +10,15 @@ export interface TelemetryOptions {
    */
   ignorePaths?: string[];
   /**
+   * Якщо задано — сервер-спани лише для запитів з цими префіксами (статика фронту й SPA-маршрути — ні).
+   */
+  tracePaths?: string[];
+  /**
+   * Усі заголовки HTTP — атрибутами спанів (`http.request.header.*`, `http.response.header.*`), як
+   * ELASTIC_APM_CAPTURE_HEADERS; cookie / authorization маскуються. `OTEL_CAPTURE_HEADERS=false` — вимкнути.
+   */
+  captureHeaders?: boolean;
+  /**
    * Record the body of incoming POST / PUT / PATCH / DELETE requests on their span — whole, as a span
    * event (a log document in Elastic), plus its start as `http.request.body` — so a write that failed
    * can be replayed from the trace. Off by default; `OTEL_CAPTURE_BODY=true` (or
@@ -49,6 +58,8 @@ export interface TelemetryConfig {
    */
   globalLabels: Record<string, string>;
   ignorePaths: string[];
+  tracePaths: string[] | null;
+  captureHeaders: boolean;
   captureBody: boolean;
   captureBodyMax: number;
   /**
@@ -119,6 +130,8 @@ export function telemetryConfig(env: NodeJS.ProcessEnv, opts: TelemetryOptions):
       env.OTEL_DEPLOYMENT_ENVIRONMENT || env.ELASTIC_APM_ENVIRONMENT || env.NODE_ENV || 'development',
     globalLabels: parseHeaders(env.ELASTIC_APM_GLOBAL_LABELS),
     ignorePaths: opts.ignorePaths ?? ['/health', '/ready'],
+    tracePaths: opts.tracePaths ?? null,
+    captureHeaders: opts.captureHeaders ?? env.OTEL_CAPTURE_HEADERS !== 'false',
     captureBody:
       opts.captureBody ??
       (truthy(env.OTEL_CAPTURE_BODY) ||

@@ -1,14 +1,12 @@
 import fs from 'node:fs';
-import { Module, OnApplicationShutdown } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { config } from './config';
-import { shutdownTelemetry } from './telemetry';
+import { TelemetryShutdown } from './telemetry';
 import { LoggerModule } from './logging/logger.module';
 import { DatabaseModule } from './database/database.module';
-import { AuthController } from './auth/auth.controller';
-import { AuthGuard } from './auth/auth.guard';
-import { AuditInterceptor } from './audit/audit.interceptor';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health/health.controller';
 import { ContractsController } from './contracts/contracts.controller';
 import { ContractsService } from './contracts/contracts.service';
@@ -19,22 +17,12 @@ import { FilesService } from './files/files.service';
 
 // Якщо фронт зібрано (apps/web/dist) — роздаємо його тим самим сервером.
 const staticFront = fs.existsSync(config.webDist)
-  ? [ServeStaticModule.forRoot({ rootPath: config.webDist, exclude: ['/api/{*path}'] })]
+  ? [ServeStaticModule.forRoot({ rootPath: config.webDist, exclude: ['/api/{*path}', '/auth/{*path}'] })]
   : [];
 
 @Module({
-  imports: [LoggerModule, DatabaseModule, ...staticFront],
-  controllers: [HealthController, AuthController, ContractsController, DeliveriesController, FilesController],
-  providers: [
-    { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
-    ContractsService,
-    DeliveriesService,
-    FilesService,
-  ],
+  imports: [LoggerModule, DatabaseModule, AuthModule, AuditModule, ...staticFront],
+  controllers: [HealthController, ContractsController, DeliveriesController, FilesController],
+  providers: [ContractsService, DeliveriesService, FilesService, TelemetryShutdown],
 })
-export class AppModule implements OnApplicationShutdown {
-  async onApplicationShutdown() {
-    await shutdownTelemetry();
-  }
-}
+export class AppModule {}
