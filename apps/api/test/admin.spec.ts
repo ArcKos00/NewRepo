@@ -37,14 +37,10 @@ describe('журнал — лише адміністратору', () => {
       .expect(204);
   });
 
-  it('роль береться з resource_access клієнта, а не з ролей realm', async () => {
-    const { clientRoles } = await import('../src/auth/oidc.service');
-    const token = {
-      realm_access: { roles: ['admin'] },
-      resource_access: { purchase: { roles: ['admin', 7] }, other: { roles: ['x'] } },
-    };
-    expect(clientRoles(token, 'purchase')).toEqual(['admin']);
-    expect(clientRoles(token, 'other')).toEqual(['x']);
-    expect(clientRoles({ realm_access: { roles: ['admin'] } }, 'purchase')).toEqual([]);
+  it('роль береться з ролей користувача в realm, а не з ролей клієнта', async () => {
+    const { realmRoles } = await import('../src/auth/oidc.service');
+    expect(realmRoles({ realm_access: { roles: ['admin', 7, 'offline_access'] } })).toEqual(['admin', 'offline_access']);
+    expect(realmRoles({ resource_access: { purchase: { roles: ['admin'] } } })).toEqual([]);
+    expect(realmRoles({})).toEqual([]);
   });
 });

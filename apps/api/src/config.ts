@@ -37,7 +37,7 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET ?? '',
   /** Скільки годин живе один вхід. Сесія не подовжується. */
   sessionMaxHours: Number(process.env.SESSION_MAX_HOURS ?? 12),
-  /** Роль клієнта (KEYCLOAK_CLIENT_ID) у Keycloak, що дає доступ до журналу дій. */
+  /** Роль користувача в realm Keycloak (realm_access.roles), що дає доступ до журналу дій. */
   adminRole: process.env.ADMIN_ROLE ?? 'admin',
   /** AUTH_DISABLED: чи dev-користувач — адміністратор (false — перевірити застосунок без прав адміна). */
   devUserAdmin: process.env.DEV_USER_ADMIN !== 'false',

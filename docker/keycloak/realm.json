@@ -3,9 +3,7 @@
   "enabled": true,
   "sslRequired": "none",
   "roles": {
-    "client": {
-      "purchase": [{ "name": "admin", "description": "Журнал дій" }]
-    }
+    "realm": [{ "name": "admin", "description": "Журнал дій" }]
   },
   "clients": [
     {
@@ -34,7 +32,7 @@
       "firstName": "Тест",
       "lastName": "Розробник",
       "credentials": [{ "type": "password", "value": "dev", "temporary": false }],
-      "clientRoles": { "purchase": ["admin"] }
+      "realmRoles": ["default-roles-purchase", "admin"]
     },
     {
       "username": "operator",
@@ -43,7 +41,8 @@
       "email": "operator@example.com",
       "firstName": "Олена",
       "lastName": "Операторка",
-      "credentials": [{ "type": "password", "value": "operator", "temporary": false }]
+      "credentials": [{ "type": "password", "value": "operator", "temporary": false }],
+      "realmRoles": ["default-roles-purchase"]
     }
   ]
 }
