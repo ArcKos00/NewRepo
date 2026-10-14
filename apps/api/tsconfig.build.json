@@ -1,5 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "./src", "types": ["node", "multer"] },
+  // tsbuildinfo — всередині dist: nest (deleteOutDir) стирає їх разом, інакше tsc вважає, що все зібрано, і нічого не пише.
+  "compilerOptions": { "rootDir": "./src", "types": ["node", "multer"], "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo" },
   "include": ["src"]
 }
