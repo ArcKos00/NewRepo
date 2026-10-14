@@ -43,6 +43,7 @@ export function ContractPage() {
           <Link className="btn primary" to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
           <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
           <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
+          <Link className="btn" to={`/audit?contractId=${id}`}>Історія</Link>
           <ConfirmButton confirmText="Точно видалити договір?" onConfirm={() => removeContract.mutate()} disabled={removeContract.isPending}>
             Видалити
           </ConfirmButton>

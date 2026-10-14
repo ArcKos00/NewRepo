@@ -21,6 +21,23 @@
   та станом (очікується / частково поставлено / прострочено / виконано). Без урахування
   регістру, зокрема для кирилиці. Фільтри зберігаються в адресі сторінки.
 
+- **Вхід через Keycloak** (як у litopys): власна форма входу (password grant) або сторінка Keycloak
+  (Code + PKCE). Сесія — кука `sid`, дані сесії в Postgres (таблиця `sessions`), живе `SESSION_MAX_HOURS`
+  від входу і не подовжується. Без входу API відповідає `401`.
+- **Журнал дій** (сторінка «Журнал», на договорі — «Історія»): хто, коли, з якої IP і що зробив.
+  - усі зміни даних — створення/редагування/видалення договору, файл договору, недопоставка, додавання й
+    видалення поставок — з описом людською мовою і знімками «до/після»; для видалень — повний знімок
+    видаленого (договір з найменуваннями й поставками), щоб його можна було відновити вручну;
+  - запис журналу комітиться в тій самій транзакції, що й зміна;
+  - невдалі спроби змін (422/404/500…) з тілом запиту й відповіддю сервера;
+  - вхід, невдалий вхід, вихід; відкриття файлів;
+  - кліки по кнопках/посиланнях і переходи між сторінками (значення полів форм не збираються);
+  - `audit_log` лише доповнюється (тригер забороняє UPDATE/DELETE); кожен серверний запис дублюється
+    рядком `[Audit] {...}` у лог пода і має `traceId` для переходу до трейсу в APM.
+- **OpenTelemetry → Elastic APM** (як у litopys): трейси й метрики по OTLP/HTTP; http, express, Nest, pg.
+  Вмикається змінною `ELASTIC_APM_SERVER_URL` (+ `ELASTIC_APM_SECRET_TOKEN`), див. `.env.example`.
+  Транзакції позначені користувачем (`labels.enduser_id`, `labels.enduser_name`).
+
 ## Структура
 
 ```
@@ -45,8 +62,9 @@ docker compose up --build
 
 ```bash
 npm install
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/orders npm run dev:api   # API на :3000
-npm run dev:web                                                                   # фронт на :5173 (проксі /api → :3000)
+# без Keycloak (усе від dev-користувача); з Keycloak — змінні KEYCLOAK_* / PUBLIC_URL / SESSION_SECRET з .env.example
+AUTH_DISABLED=true DATABASE_URL=postgres://postgres:postgres@localhost:5432/orders npm run dev:api   # API на :3000
+npm run dev:web                                                                   # фронт на :5173 (проксі /api, /auth → :3000)
 ```
 
 Таблиці створюються міграціями автоматично при старті API.
@@ -73,6 +91,11 @@ DATABASE_URL=... npm start   # http://localhost:3000
 | POST | `/api/contracts/:id/deliveries` | додати поставку (multipart: `data` — JSON, `file` — скан накладної) |
 | DELETE | `/api/deliveries/:id` | видалити поставку |
 | GET | `/api/files/:id` | завантажити файл |
+| GET | `/api/audit?kind=&actor=&contractId=&dateFrom=&dateTo=&before=` | журнал дій (по 100, курсор `before`) |
+| POST | `/api/audit/events` | кліки й переходи з браузера |
+| POST / GET | `/auth/login` | вхід формою (JSON `username`, `password`) / через сторінку Keycloak |
+| GET | `/auth/callback` | повернення з Keycloak (redirect URI клієнта) |
+| GET | `/auth/me` · POST `/auth/logout` | хто увійшов · вихід |
 
 Помилки валідації — `422` з `{ errors: { "items.0.quantity": "..." } }`; ключ `_` — загальна помилка.
 

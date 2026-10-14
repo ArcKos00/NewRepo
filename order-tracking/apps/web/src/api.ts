@@ -1,6 +1,8 @@
 import type {
-  ContractDetails, ContractInput, ContractSearch, ContractSummary, DeliveryInput, ShortfallInput, ValidationErrorBody,
+  AuditPage, AuditSearch, ContractDetails, ContractInput, ContractSearch, ContractSummary, CurrentUser, DeliveryInput,
+  ShortfallInput, ValidationErrorBody,
 } from '@order-tracking/shared';
+import { tabId } from './tracking';
 
 export class ApiError extends Error {
   constructor(
@@ -13,17 +15,26 @@ export class ApiError extends Error {
   }
 }
 
+/** На сторінку входу, з поверненням туди, де були. */
+export function goToLogin() {
+  if (window.location.pathname === '/login') return;
+  const back = window.location.pathname + window.location.search;
+  window.location.assign(`/login?returnTo=${encodeURIComponent(back)}`);
+}
+
+/** `url` з префіксом: /api/... — дані, /auth/... — вхід. */
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method };
+  const headers: Record<string, string> = { 'X-Tab-Id': tabId };
+  const init: RequestInit = { method, headers, credentials: 'same-origin' };
   if (body instanceof FormData) init.body = body;
   else if (body !== undefined) {
     init.body = JSON.stringify(body);
-    init.headers = { 'Content-Type': 'application/json' };
+    headers['Content-Type'] = 'application/json';
   }
 
   let res: Response;
   try {
-    res = await fetch(`/api${url}`, init);
+    res = await fetch(url.startsWith('/auth/') ? url : `/api${url}`, init);
   } catch {
     throw new ApiError(0, 'Немає зв’язку з сервером. Перевірте мережу і спробуйте ще раз.');
   }
@@ -36,6 +47,11 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
       throw new ApiError(422, v.message, v.errors);
     }
     if (res.status === 413) throw new ApiError(413, 'Файл завеликий.');
+    // сесія закінчилась — на вхід (крім самих запитів входу: там 401 — це «невірний пароль»)
+    if (res.status === 401 && !url.startsWith('/auth/')) {
+      goToLogin();
+      throw new ApiError(401, 'Сесія закінчилась — увійдіть знову.');
+    }
     const message = typeof data?.message === 'string' ? data.message : 'Не вдалося виконати запит.';
     throw new ApiError(res.status, message);
   }
@@ -72,4 +88,11 @@ export const api = {
   },
   removeDelivery: (id: number) => request<{ contractId: number }>('DELETE', `/deliveries/${id}`),
   fileUrl: (id: number) => `/api/files/${id}`,
+
+  me: () => request<CurrentUser>('GET', '/auth/me'),
+  login: (username: string, password: string) => request<CurrentUser>('POST', '/auth/login', { username, password }),
+  logout: () => request<{ logoutUrl: string | null }>('POST', '/auth/logout'),
+  ssoLoginUrl: (returnTo: string) => `/auth/login?returnTo=${encodeURIComponent(returnTo)}`,
+
+  audit: (f: AuditSearch) => request<AuditPage>('GET', `/audit${qs(f)}`),
 };

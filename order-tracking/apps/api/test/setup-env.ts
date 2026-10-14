@@ -6,3 +6,5 @@ import path from 'node:path';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/orders_test';
 process.env.UPLOADS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'orders-uploads-'));
 process.env.WEB_DIST = path.join(os.tmpdir(), 'no-web-dist');
+// Тести API — без Keycloak: усі запити від dev-користувача.
+process.env.AUTH_DISABLED = 'true';

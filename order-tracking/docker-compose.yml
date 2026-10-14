@@ -19,6 +19,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://orders:orders@db:5432/orders
+      # Без Keycloak. Для входу через Keycloak — KEYCLOAK_* / PUBLIC_URL / SESSION_SECRET (див. .env.example).
+      AUTH_DISABLED: "true"
+      NODE_ENV: development   # AUTH_DISABLED при production заборонено
     ports:
       - "3000:3000"
     volumes:

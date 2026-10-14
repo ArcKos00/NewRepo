@@ -17,7 +17,20 @@
 #
 # Секрет purchase-secret створюється руками, у yaml його немає. БД — окремий інстанс на local.storage:
 #     kubectl -n ${NAMESPACE} create secret generic purchase-secret \
-#       --from-literal=DATABASE_URL='postgres://purchase:<пароль>@local.storage:5437/purchase'
+#       --from-literal=DATABASE_URL='postgres://purchase:<пароль>@local.storage:5437/purchase' \
+#       --from-literal=KEYCLOAK_CLIENT_SECRET='<secret клієнта purchase у Keycloak>' \
+#       --from-literal=SESSION_SECRET="$(openssl rand -hex 32)"
+#     # необов'язково, для Elastic APM: --from-literal=ELASTIC_APM_SECRET_TOKEN='<токен APM Server>'
+#
+# Вхід — через Keycloak, як у litopys. У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
+# (Client authentication ON), Standard flow + Direct Access Grants (форма входу застосунку);
+# Valid redirect URI https://purchase.gov.kub.k2.lan/auth/callback, post-logout https://purchase.gov.kub.k2.lan/.
+# SESSION_SECRET має бути сталим між викатками: сесії лежать у базі (таблиця sessions), і з новим секретом
+# кука sid перестане підписуватись — усіх викине на логін.
+#
+# Журнал дій (хто що змінив/видалив/куди клікнув) — таблиця audit_log у тій самій БД, сторінка «Журнал».
+# Записи лише додаються (тригер забороняє UPDATE/DELETE). Кліки ростуть швидко; чистка старих — свідомо,
+# власником таблиці, з вимкненим тригером audit_log_append_only.
 #
 # Вкладені файли (скани договорів/накладних) лежать на PVC purchase-uploads (RWO). Том RWO, тож
 # RollingUpdate працює через podAffinity до власного вузла (див. Deployment).
@@ -35,6 +48,23 @@ data:
   UPLOADS_DIR: "/app/data/uploads"
   # Максимальний розмір одного файлу, МБ.
   MAX_UPLOAD_MB: "50"
+  # Keycloak (як у litopys). Issuer — рівно той рядок, що стоїть в `iss` токенів.
+  KEYCLOAK_ISSUER: "https://auth.infrastructure.kub.k2.lan/realms/k2"   # TODO: звірити з litopys
+  KEYCLOAK_CLIENT_ID: "purchase"                                        # TODO: id клієнта в Keycloak
+  # Куди браузер повертається після логіну (redirect URI = PUBLIC_URL/auth/callback); https → secure-кука.
+  PUBLIC_URL: "https://purchase.gov.kub.k2.lan"
+  # Скільки годин живе один вхід (не подовжується).
+  SESSION_MAX_HOURS: "12"
+  AUTH_DISABLED: "false"
+  # OpenTelemetry → Elastic APM (як у litopys). Порожньо = вимкнено. Токен — ELASTIC_APM_SECRET_TOKEN у секреті.
+  ELASTIC_APM_SERVER_URL: ""                                            # TODO: напр. https://apm.<домен>:8200
+  ELASTIC_APM_ENVIRONMENT: "production"
+  ELASTIC_APM_SERVICE_NAME: "purchase-api"
+  # labels.project у Kibana — група сервісів
+  ELASTIC_APM_GLOBAL_LABELS: "project=purchase"
+  APP_VERSION: "${IMAGE_TAG}"
+  # Тіла POST/PUT/DELETE (JSON) у трейсах — невдалий запис можна повторити з трейсу (тіло входу /auth/* — ніколи).
+  OTEL_CAPTURE_BODY: "true"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -125,7 +155,7 @@ spec:
             - configMapRef:
                 name: purchase-config
             - secretRef:
-                name: purchase-secret         # DATABASE_URL
+                name: purchase-secret         # DATABASE_URL, KEYCLOAK_CLIENT_SECRET, SESSION_SECRET, ELASTIC_APM_SECRET_TOKEN
           env:
             # Стеля V8-heap (~75 % від limits.memory), щоб Node не брав дефолт з розміру ноди.
             - name: NODE_OPTIONS

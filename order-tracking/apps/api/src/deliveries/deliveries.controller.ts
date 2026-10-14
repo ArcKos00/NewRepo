@@ -5,6 +5,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { parseJsonField, uploadOptions } from '../common/multipart';
 import { DeliveriesService } from './deliveries.service';
 import { DeliveryDto } from './dto';
+import { AuditContext, Ctx } from '../audit/audit-context';
 
 @Controller()
 export class DeliveriesController {
@@ -16,13 +17,14 @@ export class DeliveriesController {
   async create(
     @Param('id', ParseIntPipe) id: number,
     @Body('data') data: string,
+    @Ctx() ctx: AuditContext,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.deliveries.create(id, await parseJsonField(data, DeliveryDto), file);
+    return this.deliveries.create(id, await parseJsonField(data, DeliveryDto), ctx, file);
   }
 
   @Delete('deliveries/:id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.deliveries.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Ctx() ctx: AuditContext) {
+    return this.deliveries.remove(id, ctx);
   }
 }
