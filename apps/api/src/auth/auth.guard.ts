@@ -5,17 +5,25 @@ import { Reflector } from '@nestjs/core';
 import { PinoLogger } from 'nestjs-pino';
 import { labelRequest } from '../telemetry/index';
 import { currentUser } from '../audit/audit-context';
+import { config } from '../config';
 import type { SessionRequest } from './session';
 
 const PUBLIC = 'auth:public';
 /** Маршрут доступний без входу (сам вхід). */
 export const Public = () => SetMetadata(PUBLIC, true);
 
+const VIEW = 'auth:view';
+/** Перегляд (читання) — без входу, якщо дозволено ANONYMOUS_READ; зміни все одно лише після входу. */
+export const Viewable = () => SetMetadata(VIEW, true);
+
 const ADMIN = 'auth:admin';
 /** Лише для адміністратора (роль ADMIN_ROLE у Keycloak). */
 export const AdminOnly = () => SetMetadata(ADMIN, true);
 
-/** Усе API — лише для тих, хто увійшов через Keycloak (або AUTH_DISABLED у розробці). */
+/**
+ * API — для тих, хто увійшов через Keycloak (або AUTH_DISABLED у розробці). Без входу — лише
+ * перегляд (@Viewable) при ANONYMOUS_READ.
+ */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
@@ -33,7 +41,11 @@ export class AuthGuard implements CanActivate {
       labelRequest(req, { 'enduser.id': user.id, 'enduser.name': user.username });
     }
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC, [ctx.getHandler(), ctx.getClass()])) return true;
-    if (!user) throw new UnauthorizedException('Потрібно увійти');
+    if (!user) {
+      if (config.anonymousRead && this.reflector.getAllAndOverride<boolean>(VIEW, [ctx.getHandler(), ctx.getClass()]))
+        return true;
+      throw new UnauthorizedException('Потрібно увійти');
+    }
     if (this.reflector.getAllAndOverride<boolean>(ADMIN, [ctx.getHandler(), ctx.getClass()]) && !user.admin)
       throw new ForbiddenException('Лише для адміністратора');
     return true;

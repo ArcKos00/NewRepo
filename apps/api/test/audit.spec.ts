@@ -115,11 +115,34 @@ describe('доступ', () => {
     config.authDisabled = true;
   });
 
-  it('без входу API відповідає 401', async () => {
+  afterEach(() => {
+    config.anonymousRead = true;
+  });
+
+  it('без входу — лише перегляд: зміни й журнал відповідають 401', async () => {
     config.authDisabled = false;
-    await http.get('/api/contracts').expect(401);
+    await http.get('/api/contracts').expect(200);
+    await http.get('/api/contracts/counterparties').expect(200);
+    await http.get('/api/contracts/999999').expect(404);
+    await http.get('/api/deliveries').expect(200);
+    await http.get('/api/files/999999').expect(404);
+    await http.post('/api/contracts').send({}).expect(401);
+    await http.put('/api/contracts/1').send({}).expect(401);
+    await http.delete('/api/contracts/1').expect(401);
+    await http.put('/api/contracts/1/shortfall').send({}).expect(401);
+    await http.post('/api/contracts/1/deliveries').expect(401);
     await http.delete('/api/deliveries/1').expect(401);
+    await http.get('/api/audit').expect(401);
+    await http.post('/api/audit/events').send({ events: [] }).expect(401);
     await http.get('/auth/me').expect(401);
+  });
+
+  it('ANONYMOUS_READ=false — без входу 401 і на перегляд', async () => {
+    config.authDisabled = false;
+    config.anonymousRead = false;
+    await http.get('/api/contracts').expect(401);
+    await http.get('/api/deliveries').expect(401);
+    await http.get('/api/files/1').expect(401);
   });
 
   it('проби health доступні без входу', async () => {

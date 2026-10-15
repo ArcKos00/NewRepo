@@ -39,6 +39,8 @@ export const config = {
   sessionMaxHours: Number(process.env.SESSION_MAX_HOURS ?? 12),
   /** Роль користувача в realm Keycloak (realm_access.roles), що дає доступ до журналу дій. */
   adminRole: process.env.ADMIN_ROLE ?? 'admin',
+  /** Перегляд, пошук і фільтри без входу (маршрути @Viewable). false — усе лише після входу. */
+  anonymousRead: process.env.ANONYMOUS_READ !== 'false',
   /** AUTH_DISABLED: чи dev-користувач — адміністратор (false — перевірити застосунок без прав адміна). */
   devUserAdmin: process.env.DEV_USER_ADMIN !== 'false',
 };

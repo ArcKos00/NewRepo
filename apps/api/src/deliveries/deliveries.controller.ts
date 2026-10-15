@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { parseJsonField, uploadOptions } from '../common/multipart';
+import { Viewable } from '../auth/auth.guard';
 import { DeliveriesService } from './deliveries.service';
 import { DeliveryDto, DeliverySearchDto } from './dto';
 import { AuditContext, Ctx } from '../audit/audit-context';
@@ -13,6 +14,7 @@ export class DeliveriesController {
 
   /** Усі поставки з пошуком і фільтрами (сторінка «Поставки»). */
   @Get('deliveries')
+  @Viewable()
   search(@Query() query: DeliverySearchDto) {
     return this.deliveries.search(query);
   }

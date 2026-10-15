@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadOptions } from '../common/multipart';
+import { Viewable } from '../auth/auth.guard';
 import { AuditContext, Ctx } from '../audit/audit-context';
 import { ContractsService } from './contracts.service';
 import { ContractDto, SearchDto, ShortfallDto } from './dto';
@@ -12,16 +13,19 @@ export class ContractsController {
   constructor(private readonly contracts: ContractsService) {}
 
   @Get()
+  @Viewable()
   search(@Query() query: SearchDto) {
     return this.contracts.search(query);
   }
 
   @Get('counterparties')
+  @Viewable()
   counterparties() {
     return this.contracts.counterparties();
   }
 
   @Get(':id')
+  @Viewable()
   get(@Param('id', ParseIntPipe) id: number) {
     return this.contracts.get(id);
   }

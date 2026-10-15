@@ -2,6 +2,7 @@ import { Controller, MessageEvent, Req, Sse } from '@nestjs/common';
 import { interval, map, merge, Observable, takeUntil, timer } from 'rxjs';
 import type { SessionRequest } from '../auth/session';
 import { EventsService } from './events.service';
+import { Viewable } from '../auth/auth.guard';
 
 /** Коментар-пінг, щоб ingress/haproxy не рвали «тихе» з'єднання за таймаутом. */
 const PING_MS = 25_000;
@@ -10,8 +11,9 @@ const PING_MS = 25_000;
 export class EventsController {
   constructor(private readonly live: EventsService) {}
 
-  /** Потік змін (SSE) для всіх відкритих вкладок. Закривається, коли закінчується вхід. */
+  /** Потік змін (SSE) для всіх відкритих вкладок. Закривається, коли закінчується вхід; без входу — для перегляду. */
   @Sse()
+  @Viewable()
   stream(@Req() req: SessionRequest): Observable<MessageEvent> {
     const events = merge(
       this.live.events.pipe(map((data): MessageEvent => ({ data }))),

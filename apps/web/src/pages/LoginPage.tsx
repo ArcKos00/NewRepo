@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { FormError } from '../components/ui';
 
@@ -46,6 +46,7 @@ export function LoginPage() {
       </label>
       <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Вхід…' : 'Увійти'}</button>
       <a className="small" href={api.ssoLoginUrl(returnTo)}>Увійти через сторінку Keycloak</a>
+      <Link className="small" to={returnTo}>← Переглядати без входу</Link>
     </form>
   );
 }

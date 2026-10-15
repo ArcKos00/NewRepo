@@ -5,12 +5,14 @@ import { api } from '../api';
 import { fdate, fq, STATUS_TEXT } from '../format';
 import { LoadError, Loading, ProgressBar, StatusPill } from '../components/ui';
 import { DebouncedInput, FilterBar, Pagination, RangeText, useListParams } from '../components/listing';
+import { useMe } from '../user';
 
 const FILTERS = ['counterparty', 'item', 'dateFrom', 'dateTo', 'status'] as const;
 const KEYS = ['q', ...FILTERS] as const;
 
 export function ContractsPage() {
   const navigate = useNavigate();
+  const me = useMe();
   const { values: f, page, update, setPage, reset } = useListParams(KEYS);
   const active = FILTERS.filter((k) => f[k]).length;
   const hasFilters = active > 0 || !!f.q.trim();
@@ -31,7 +33,7 @@ export function ContractsPage() {
     <>
       <div className="head">
         <h1>Замовлення (договори)</h1>
-        <Link to="/contracts/new" className="btn primary">+ Нове замовлення</Link>
+        {me && <Link to="/contracts/new" className="btn primary">+ Нове замовлення</Link>}
       </div>
 
       <FilterBar search={f.q} onSearch={(q) => update({ q })} placeholder="Пошук: № договору, контрагент, найменування"

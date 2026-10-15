@@ -62,6 +62,8 @@ data:
   # Скільки годин живе один вхід (не подовжується).
   SESSION_MAX_HOURS: "12"
   AUTH_DISABLED: "false"
+  # Перегляд, пошук і фільтри без входу; зміни — лише після входу. "false" — усе лише після входу.
+  ANONYMOUS_READ: "true"
   # OpenTelemetry → Elastic APM (OTLP/HTTP): трейси, метрики, логи.
   OTEL_SERVICE_NAME: "purchase"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://apm-server.infrastructure.svc.cluster.local:8200"

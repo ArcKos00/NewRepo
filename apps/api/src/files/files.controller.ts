@@ -7,6 +7,7 @@ import { Contract, Delivery, StoredFile } from '../database/entities';
 import { AuditService } from '../audit/audit.service';
 import { AuditContext, Ctx } from '../audit/audit-context';
 import { FilesService } from './files.service';
+import { Viewable } from '../auth/auth.guard';
 
 @Controller('files')
 export class FilesController {
@@ -17,6 +18,7 @@ export class FilesController {
   ) {}
 
   @Get(':id')
+  @Viewable()
   async download(@Param('id', ParseIntPipe) id: number, @Res() res: Response, @Ctx() ctx: AuditContext) {
     const file = await this.repo.findOneBy({ id });
     if (!file || !fs.existsSync(this.files.pathOf(file))) throw new NotFoundException('Файл не знайдено');

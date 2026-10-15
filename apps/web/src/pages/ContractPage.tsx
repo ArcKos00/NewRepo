@@ -42,13 +42,19 @@ export function ContractPage() {
           <div className="muted">{c.counterparty}</div>
         </div>
         <div className="actions">
-          <Link className="btn primary" to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
-          <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
-          <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
+          {me && (
+            <>
+              <Link className="btn primary" to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
+              <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
+              <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
+            </>
+          )}
           {me?.admin && <Link className="btn" to={`/audit?contractId=${id}`}>Історія</Link>}
-          <ConfirmButton confirmText="Точно видалити договір?" onConfirm={() => removeContract.mutate()} disabled={removeContract.isPending}>
-            Видалити
-          </ConfirmButton>
+          {me && (
+            <ConfirmButton confirmText="Точно видалити договір?" onConfirm={() => removeContract.mutate()} disabled={removeContract.isPending}>
+              Видалити
+            </ConfirmButton>
+          )}
         </div>
       </div>
       <FormError error={removeContract.error ?? removeDelivery.error} />
@@ -119,9 +125,11 @@ export function ContractPage() {
                   </td>
                   <td className="small">{d.file && <a href={api.fileUrl(d.file.id)}>{d.file.name}</a>}</td>
                   <td className="r">
-                    <ConfirmButton className="btn sm danger" confirmText="Точно?" onConfirm={() => removeDelivery.mutate(d.id)} disabled={removeDelivery.isPending}>
-                      Видалити
-                    </ConfirmButton>
+                    {me && (
+                      <ConfirmButton className="btn sm danger" confirmText="Точно?" onConfirm={() => removeDelivery.mutate(d.id)} disabled={removeDelivery.isPending}>
+                        Видалити
+                      </ConfirmButton>
+                    )}
                   </td>
                 </tr>
               ))}
