@@ -15,6 +15,9 @@ interface Row {
   received: number;
 }
 
+/** Рядок, у який нічого не ввели (од. виміру — за замовчуванням), — не надсилається. */
+const isBlank = (r: Row) => !r.id && !r.name.trim() && !r.quantity.trim();
+
 /** Сторінка створення (/contracts/new) і редагування (/contracts/:id/edit) договору. */
 export function ContractFormPage() {
   const { id } = useParams();
@@ -46,9 +49,12 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
   const [removeFile, setRemoveFile] = useState(false);
   const [rows, setRows] = useState<Row[]>(() =>
     existing
-      ? existing.items.map((i) => ({ key: nextKey.current++, id: i.id, name: i.name, unit: i.unit, quantity: String(i.quantity), received: i.received }))
+      // В кінці завжди порожній рядок: почали в ньому вводити назву — з'являється наступний.
+      ? [...existing.items.map((i) => ({ key: nextKey.current++, id: i.id, name: i.name, unit: i.unit, quantity: String(i.quantity), received: i.received })), newRow()]
       : [newRow()],
   );
+  /** Заповнені рядки — те, що йде на сервер; їх індекси збігаються з індексами помилок `items.N`. */
+  const filled = rows.filter((r) => !isBlank(r));
 
   const { data: counterparties = [] } = useQuery({ queryKey: ['counterparties'], queryFn: api.counterparties });
 
@@ -60,7 +66,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
         contractDate,
         expectedDeliveryDate: expected || null,
         notes: notes || null,
-        items: rows.map((r) => ({ id: r.id, name: r.name, unit: r.unit, quantity: parseQty(r.quantity) as number })),
+        items: filled.map((r) => ({ id: r.id, name: r.name, unit: r.unit, quantity: parseQty(r.quantity) as number })),
       };
       let saved = existing ? await api.update(existing.id, input) : await api.create(input);
       let fileError = false;
@@ -86,9 +92,17 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    // Порожні рядки посередині прибираємо, щоб номери рядків збігались з помилками сервера.
+    setRows([...filled, newRow()]);
     save.mutate();
   };
-  const updateRow = (key: number, patch: Partial<Row>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const updateRow = (key: number, patch: Partial<Row>) => {
+    const next = rows.map((r) => (r.key === key ? { ...r, ...patch } : r));
+    const last = next[next.length - 1];
+    // Почали вводити назву в останньому рядку — нижче одразу новий порожній, фокус лишається тут.
+    if (last.key === key && last.name.trim()) next.push(newRow());
+    setRows(next);
+  };
   const back = existing ? `/contracts/${existing.id}` : '/contracts';
 
   return (
@@ -137,7 +151,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
         <div className="panel">
           <div className="panel-h">
             Найменування
-            <button type="button" className="btn sm" id="add-item" onClick={() => setRows([...rows, newRow()])}>+ Додати рядок</button>
+            <span className="small muted">новий рядок з'являється, щойно почнете вводити назву</span>
           </div>
           <div className="tbl-box">
             <table className="form-tbl">
@@ -145,30 +159,33 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
                 <tr><th>Найменування</th><th>Кількість</th><th>Од. виміру</th>{existing && <th className="r">Отримано</th>}<th /></tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.key}>
-                    <td>
-                      <input aria-label="Найменування" name={`items.${i}.name`} className={err(`items.${i}.name`) ? 'invalid' : ''} value={r.name} maxLength={500}
-                        onChange={(e) => { updateRow(r.key, { name: e.target.value }); touch(`items.${i}.name`); }} autoFocus={r.key > 1 && !r.id && i === rows.length - 1} />
-                      <FieldError message={err(`items.${i}.name`)} />
-                    </td>
-                    <td style={{ width: 160 }}>
-                      <input aria-label="Кількість" name={`items.${i}.quantity`} type="number" step="any" min="0" className={err(`items.${i}.quantity`) ? 'invalid' : ''}
-                        value={r.quantity} onChange={(e) => { updateRow(r.key, { quantity: e.target.value }); touch(`items.${i}.quantity`); }} />
-                      <FieldError message={err(`items.${i}.quantity`)} />
-                    </td>
-                    <td style={{ width: 110 }}>
-                      <input aria-label="Од. виміру" name={`items.${i}.unit`} value={r.unit} maxLength={20} onChange={(e) => { updateRow(r.key, { unit: e.target.value }); touch(`items.${i}.unit`); }} />
-                      <FieldError message={err(`items.${i}.unit`)} />
-                    </td>
-                    {existing && <td className="r num" style={{ width: 90 }}>{r.id ? fq(r.received) : ''}</td>}
-                    <td className="r" style={{ width: 50 }}>
-                      {r.received > 0
-                        ? <span className="muted" title="Є поставки — видалити не можна">🔒</span>
-                        : <button type="button" className="btn sm danger" aria-label="Видалити рядок" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>×</button>}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((r, i) => {
+                  const empty = i === rows.length - 1 && isBlank(r);
+                  return (
+                    <tr key={r.key} className={empty ? 'row-new' : undefined}>
+                      <td>
+                        <input aria-label="Найменування" name={`items.${i}.name`} className={err(`items.${i}.name`) ? 'invalid' : ''} value={r.name} maxLength={500}
+                          onChange={(e) => { updateRow(r.key, { name: e.target.value }); touch(`items.${i}.name`); }} placeholder={empty ? 'Нове найменування…' : undefined} />
+                        <FieldError message={err(`items.${i}.name`)} />
+                      </td>
+                      <td style={{ width: 160 }}>
+                        <input aria-label="Кількість" name={`items.${i}.quantity`} type="number" step="any" min="0" className={err(`items.${i}.quantity`) ? 'invalid' : ''}
+                          value={r.quantity} onChange={(e) => { updateRow(r.key, { quantity: e.target.value }); touch(`items.${i}.quantity`); }} />
+                        <FieldError message={err(`items.${i}.quantity`)} />
+                      </td>
+                      <td style={{ width: 110 }}>
+                        <input aria-label="Од. виміру" name={`items.${i}.unit`} value={r.unit} maxLength={20} onChange={(e) => { updateRow(r.key, { unit: e.target.value }); touch(`items.${i}.unit`); }} />
+                        <FieldError message={err(`items.${i}.unit`)} />
+                      </td>
+                      {existing && <td className="r num" style={{ width: 90 }}>{r.id ? fq(r.received) : ''}</td>}
+                      <td className="r" style={{ width: 50 }}>
+                        {r.received > 0
+                          ? <span className="muted" title="Є поставки — видалити не можна">🔒</span>
+                          : !empty && <button type="button" className="btn sm danger" aria-label="Видалити рядок" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>×</button>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

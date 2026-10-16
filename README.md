@@ -32,6 +32,10 @@
   рядок можна перетягнути назад. Перед створенням — підтвердження. Однакові найменування (назва й од.)
   стають одним рядком договору. Видалили договір чи рядок у ньому — кількість повертається в нерозподілене;
   зменшили кількість у договорі — повертається надлишок (з останніх розподілів).
+- **Теми К-2** (сабмодуль `packages/k2-styles`, тег `v0.2.0`): перемикач у шапці — «Як у системі»
+  (світла/темна за системою, за замовчуванням), «Світла» (`light`), «Темна» (`dark`), «Койот» (`sand`).
+  Вибір запам'ятовується в браузері. Застосунок бере з тем лише кольори (`src/styles.css` →
+  токени k2). Оновити теми: `cd packages/k2-styles && git fetch --tags && git checkout <тег>`, коміт.
 - **Живі оновлення**: нове чи змінене іншим користувачем одразу з'являється в усіх відкритих
   вкладках (SSE `/api/events` + Postgres LISTEN/NOTIFY — працює й коли подів кілька).
 - **Вхід через Keycloak** (як у litopys): власна форма входу (password grant) або сторінка Keycloak
@@ -67,6 +71,7 @@ apps/api         NestJS: REST API під /api, роздає зібраний ф�
   src/telemetry  OpenTelemetry → Elastic APM (telemetry.ts імпортується в main.ts одразу після env.ts)
 apps/web         React + Vite
 packages/shared  TypeScript-типи контракту API, спільні для бекенду і фронту
+packages/k2-styles  git-сабмодуль: теми К-2 (https://github.com/ArcKos00/k2-styles)
 deploy.yaml      Kubernetes (ConfigMap, PVC, Deployment, Service, Ingress)
 docker-compose.dev.yml  Postgres + Keycloak для розробки
 .run/            run configurations WebStorm
@@ -87,6 +92,7 @@ docker compose up --build
 Потрібні Node.js 22.12+ (краще 24) і Docker.
 
 ```bash
+git submodule update --init              # теми К-2 (packages/k2-styles); або клонувати з --recurse-submodules
 npm install
 cp apps/api/.env.example apps/api/.env   # значення вже під docker-compose.dev.yml
 npm run db:up                            # Postgres :5442 (бази orders і orders_test) + Keycloak :8081

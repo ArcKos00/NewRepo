@@ -1,32 +1,17 @@
 /* Одна робоча колонка (до 1100px): верхня панель і поточний екран. Таблиці на телефоні прокручуються у власних блоках. */
 :root {
-  --bg: #f4f6f5;
-  --surface: #ffffff;
-  --fg: #18201d;
-  --muted: #5d6b66;
-  --line: #dde3e0;
-  --accent: #1f6f5c;
-  --accent-fg: #ffffff;
-  --accent-soft: #e2efeb;
-  --ok: #2c7a3f;
-  --ok-soft: #e1f1e4;
-  --danger: #b3261e;
-  --danger-soft: #f9e3e1;
-  --info: #2a5f99;
-  --info-soft: #e1ebf6;
-  --neutral-soft: #e9ecea;
+  /* Кольори — з тем k2-styles (packages/k2-styles, атрибут data-theme на <html>, див. theme.ts);
+     тут лише імена, якими користується застосунок. */
+  --fg: var(--text);
+  --line: var(--border);
+  --accent-fg: var(--on-accent);
+  --danger: var(--err);
+  --danger-soft: var(--err-soft);
+  --info: var(--accent-text);
+  --info-soft: var(--accent-soft);
+  --neutral-soft: var(--surface-2);
   --font-ui: "Golos Text", "Segoe UI", Roboto, Arial, sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121715; --surface: #1a211e; --fg: #e5ebe8; --muted: #9aa8a2; --line: #2c3632;
-    --accent: #5fbfa4; --accent-fg: #0d1512; --accent-soft: #1f3530;
-    --ok: #7acb8c; --ok-soft: #1d3324; --danger: #f08a80; --danger-soft: #3a2220;
-    --info: #8db8e6; --info-soft: #1d2b3b; --neutral-soft: #262e2b;
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -180,3 +165,7 @@ table.audit details summary { cursor: pointer; color: var(--accent); margin-top:
 dialog.modal { border: 1px solid var(--line); border-radius: 10px; padding: 0; background: var(--surface); color: var(--fg); width: min(440px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
 dialog.modal::backdrop { background: rgba(10, 16, 14, .45); }
 .modal-b { padding: 18px 20px; display: grid; gap: 14px; }
+.form-tbl tr.row-new input { border-style: dashed; }
+
+/* Перемикач теми */
+.theme-pick { width: auto; padding: 4px 8px; font-size: .85rem; }

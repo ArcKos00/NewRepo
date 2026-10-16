@@ -6,6 +6,7 @@ import { api } from './api';
 import { flush, startTracking, trackNavigation } from './tracking';
 import { useLiveUpdates } from './live';
 import { loginHref, meQuery } from './user';
+import { THEMES, useTheme, type ThemeChoice } from './theme';
 import { LoadError, Loading } from './components/ui';
 import { ContractsPage } from './pages/ContractsPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
@@ -24,6 +25,7 @@ export function App() {
   const onLogin = location.pathname === '/login';
   const me = useQuery({ ...meQuery, enabled: !onLogin });
   const user = me.data;
+  const [theme, setTheme] = useTheme();
 
   // Живі оновлення — і для перегляду без входу.
   useLiveUpdates(!onLogin && me.isSuccess);
@@ -65,6 +67,9 @@ export function App() {
             {user && <NavLink to="/contracts/new" className="btn primary">+ Нове замовлення</NavLink>}
           </nav>
           <div className="user">
+            <select className="theme-pick" aria-label="Тема" value={theme} onChange={(e) => setTheme(e.target.value as ThemeChoice)}>
+              {THEMES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
             {user ? (
               <>
                 <span title={user.username}>{user.displayName ?? user.username}</span>
