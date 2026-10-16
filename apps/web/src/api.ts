@@ -1,6 +1,7 @@
 import type {
   AuditPage, AuditSearch, ContractDetails, ContractInput, ContractList, ContractSearch, CurrentUser, DeliveryInput,
-  DeliveryList, DeliverySearch, ShortfallInput, ValidationErrorBody,
+  DeliveryList, DeliverySearch, PoolContractInput, PoolItem, PoolItemInput, PoolList, PoolSearch, ShortfallInput,
+  ValidationErrorBody,
 } from '@order-tracking/shared';
 import { tabId } from './tracking';
 
@@ -89,6 +90,12 @@ export const api = {
   },
   removeDelivery: (id: number) => request<{ contractId: number }>('DELETE', `/deliveries/${id}`),
   fileUrl: (id: number) => `/api/files/${id}`,
+
+  pool: (f: PoolSearch) => request<PoolList>('GET', `/pool${qs(f)}`),
+  poolAvailable: () => request<PoolItem[]>('GET', '/pool/available'),
+  addPool: (input: PoolItemInput) => request<PoolItem>('POST', '/pool', input),
+  removePool: (id: number) => request<void>('DELETE', `/pool/${id}`),
+  createFromPool: (input: PoolContractInput) => request<ContractDetails>('POST', '/pool/contract', input),
 
   me: () => request<CurrentUser>('GET', '/auth/me'),
   login: (username: string, password: string) => request<CurrentUser>('POST', '/auth/login', { username, password }),

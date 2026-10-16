@@ -22,7 +22,7 @@ const PAGE_SIZE = 50;
 
 /** Які дії входять у групу фільтра журналу. */
 const KIND_SQL: Record<AuditKind, string> = {
-  changes: `a.source = 'api' AND a.success AND (a.action LIKE 'contract.%' OR a.action LIKE 'delivery.%')`,
+  changes: `a.source = 'api' AND a.success AND (a.action LIKE 'contract.%' OR a.action LIKE 'delivery.%' OR a.action LIKE 'pool.%')`,
   deletes: `a.source = 'api' AND (a.action LIKE '%.delete' OR a.action = 'contract.file.remove')`,
   failed: `NOT a.success`,
   files: `a.action = 'file.download'`,

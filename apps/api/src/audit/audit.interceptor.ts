@@ -11,10 +11,11 @@ const BODY_MAX = 8 * 1024;
 export function entityOfPath(path: string) {
   const contract = path.match(/\/contracts\/(\d+)/);
   const delivery = path.match(/\/deliveries\/(\d+)/);
+  const pool = path.match(/\/pool\/(\d+)/);
   return {
     contractId: contract ? Number(contract[1]) : null,
-    entityType: delivery ? 'delivery' : contract ? 'contract' : null,
-    entityId: delivery ? Number(delivery[1]) : contract ? Number(contract[1]) : null,
+    entityType: delivery ? 'delivery' : contract ? 'contract' : pool ? 'pool' : null,
+    entityId: delivery ? Number(delivery[1]) : contract ? Number(contract[1]) : pool ? Number(pool[1]) : null,
   };
 }
 

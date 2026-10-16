@@ -1,10 +1,44 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import type { ContractStatus } from '@order-tracking/shared';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import type { ContractStatus, PoolStatus } from '@order-tracking/shared';
 import { ApiError } from '../api';
-import { STATUS_TEXT } from '../format';
+import { POOL_STATUS_TEXT, STATUS_TEXT } from '../format';
 
 export function StatusPill({ status }: { status: ContractStatus }) {
   return <span className={`pill st-${status}`}>{STATUS_TEXT[status]}</span>;
+}
+
+export function PoolStatusPill({ status }: { status: PoolStatus }) {
+  return <span className={`pill ps-${status}`}>{POOL_STATUS_TEXT[status]}</span>;
+}
+
+/** Модальне вікно (нативний <dialog>): Esc і клік повз — закрити, фокус лишається всередині. */
+export function Modal({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const d = ref.current!;
+    if (!d.open) d.showModal();
+    return () => d.close();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="modal"
+      aria-labelledby={titleId}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose();
+      }}
+    >
+      <div className="modal-b">
+        <h2 id={titleId}>{title}</h2>
+        {children}
+      </div>
+    </dialog>
+  );
 }
 
 /** Смуга виконання: зелене — отримано, червоне — не зможуть. */

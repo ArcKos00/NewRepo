@@ -33,6 +33,7 @@ export const validationPipe = new ValidationPipe({
     const flat = flatten(errors);
     // Порожній масив/відсутнє поле items і т.п. показуємо як загальну помилку
     if (flat.items && !flat._) flat._ = flat.items;
+    if (flat.lines && !flat._) flat._ = flat.lines;
     return new UnprocessableEntityException({ statusCode: 422, message: 'Перевірте введені дані', errors: flat });
   },
 });

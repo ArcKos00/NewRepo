@@ -18,6 +18,8 @@ function refresh(qc: QueryClient, path: string, contractId: number | null) {
   qc.invalidateQueries({ queryKey: ['contracts'] });
   qc.invalidateQueries({ queryKey: ['deliveries'] });
   qc.invalidateQueries({ queryKey: ['counterparties'] });
+  // Договір міг узяти з нерозподіленого чи повернути туди (видалення, зменшення кількості).
+  qc.invalidateQueries({ queryKey: ['pool'] });
   qc.invalidateQueries({ queryKey: contractId ? ['contract', contractId] : ['contract'], refetchType: 'none' });
   const viewed = viewedContract(path);
   if (viewed && (contractId === null || contractId === viewed)) {
@@ -54,7 +56,8 @@ export function useLiveUpdates(enabled: boolean) {
         } catch {
           return;
         }
-        refresh(qc, path.current, event.type === 'contract' ? event.contractId : null);
+        if (event.type === 'pool') qc.invalidateQueries({ queryKey: ['pool'] });
+        else refresh(qc, path.current, event.type === 'contract' ? event.contractId : null);
       };
       source.onerror = () => {
         // Обрив мережі браузер перепідключає сам; закрите з'єднання (401, 502...) — ми, з паузою.

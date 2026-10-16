@@ -26,7 +26,8 @@ export class ContractItemDto implements ContractItemInput {
   quantity: number;
 }
 
-export class ContractDto implements ContractInput {
+/** Поля договору без найменувань — спільні для звичайної форми і договору з нерозподіленого. */
+export class ContractHeaderDto implements Omit<ContractInput, 'items'> {
   @IsString() @IsNotEmpty({ message: 'Вкажіть номер договору' }) @MaxLength(100, { message: 'Не довше 100 символів' })
   number: string;
 
@@ -42,7 +43,9 @@ export class ContractDto implements ContractInput {
 
   @IsOptional() @IsString() @MaxLength(2000, { message: 'Не довше 2000 символів' })
   notes: string | null;
+}
 
+export class ContractDto extends ContractHeaderDto implements ContractInput {
   @IsArray({ message: 'Додайте хоча б одне найменування.' })
   @ArrayMinSize(1, { message: 'Додайте хоча б одне найменування.' })
   @ValidateNested({ each: true }) @Type(() => ContractItemDto)

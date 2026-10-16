@@ -147,3 +147,36 @@ table.audit details summary { cursor: pointer; color: var(--accent); margin-top:
 .pager .btn.current { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .list-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 22px; }
 .stale { opacity: .6; transition: opacity .15s; }
+
+/* Нерозподілені */
+.ps-unallocated { background: var(--info-soft); color: var(--info); }
+.ps-partial { background: var(--neutral-soft); color: var(--fg); }
+.ps-allocated { background: var(--ok-soft); color: var(--ok); }
+.stack-sm { display: grid; gap: 12px; }
+.pool-entry { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.pool-entry label.f { flex: 0 1 140px; }
+.pool-entry label.f.grow { flex: 1 1 220px; }
+.pool-entry .btn { margin-top: 21px; }
+
+/* Договір з нерозподіленого: доступне | у замовлення | поля договору */
+.wrap.wide { max-width: 1480px; }
+.alloc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+@media (max-width: 1080px) { .alloc { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .alloc-form { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .alloc { grid-template-columns: 1fr; } }
+.alloc-col { display: flex; flex-direction: column; height: min(70vh, 720px); min-height: 320px; transition: background .1s, outline-color .1s; outline: 2px dashed transparent; outline-offset: -2px; }
+.alloc-col.over { outline-color: var(--accent); background: var(--accent-soft); }
+.alloc-search { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.alloc-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.alloc-list .empty { padding: 32px 16px; }
+.alloc-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: grab; background: var(--surface); }
+.alloc-item:hover { background: var(--accent-soft); }
+.alloc-item:active { cursor: grabbing; }
+.alloc-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.alloc-qty { flex: 0 0 auto; }
+.alloc-qty input { width: 110px; }
+.alloc-form { position: sticky; top: 16px; }
+.confirm-list { margin: 6px 0 8px; padding-left: 20px; max-height: 240px; overflow-y: auto; }
+
+dialog.modal { border: 1px solid var(--line); border-radius: 10px; padding: 0; background: var(--surface); color: var(--fg); width: min(440px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+dialog.modal::backdrop { background: rgba(10, 16, 14, .45); }
+.modal-b { padding: 18px 20px; display: grid; gap: 14px; }

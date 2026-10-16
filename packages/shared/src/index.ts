@@ -147,6 +147,72 @@ export interface DeliveryList {
   pageSize: number;
 }
 
+// ---------- Нерозподілені найменування (сторінка «Нерозподілені») ----------
+
+/** unallocated — ще нічого не пішло в договори; partial — частина; allocated — усе розподілено. */
+export type PoolStatus = 'unallocated' | 'partial' | 'allocated';
+
+/** Скільки з запису пішло в договір. */
+export interface PoolAllocation {
+  contractId: number;
+  number: string;
+  counterparty: string;
+  quantity: number;
+}
+
+/** Найменування, внесене без договору; потім розподіляється по договорах. */
+export interface PoolItem {
+  id: number;
+  name: string;
+  unit: string;
+  quantity: number;
+  allocated: number;
+  /** quantity − allocated */
+  remaining: number;
+  status: PoolStatus;
+  /** Дата внесення */
+  enteredOn: string;
+  notes: string | null;
+  allocations: PoolAllocation[];
+}
+
+export interface PoolItemInput {
+  name: string;
+  unit: string;
+  quantity: number;
+  enteredOn: string;
+  notes: string | null;
+}
+
+export interface PoolSearch {
+  /** Кожне слово — у найменуванні */
+  q?: string;
+  status?: PoolStatus;
+  /** Дата внесення */
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PoolList {
+  items: PoolItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Скільки взяти з нерозподіленого запису в новий договір. */
+export interface PoolLineInput {
+  poolItemId: number;
+  quantity: number;
+}
+
+/** Новий договір з нерозподіленого: поля договору + що з нерозподіленого взяти. */
+export interface PoolContractInput extends Omit<ContractInput, 'items'> {
+  lines: PoolLineInput[];
+}
+
 // ---------- Живі оновлення (SSE /api/events) ----------
 
 /**
@@ -155,6 +221,7 @@ export interface DeliveryList {
  */
 export type LiveEvent =
   | { type: 'contract'; action: 'created' | 'updated' | 'deleted'; contractId: number }
+  | { type: 'pool' }
   | { type: 'resync' };
 
 /** Тіло відповіді 422: помилки за шляхом поля ("items.0.quantity"); ключ "_" — загальна. */

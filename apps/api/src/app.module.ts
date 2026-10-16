@@ -15,6 +15,8 @@ import { DeliveriesController } from './deliveries/deliveries.controller';
 import { DeliveriesService } from './deliveries/deliveries.service';
 import { FilesController } from './files/files.controller';
 import { FilesService } from './files/files.service';
+import { PoolController } from './pool/pool.controller';
+import { PoolService } from './pool/pool.service';
 
 // Якщо фронт зібрано (apps/web/dist) — роздаємо його тим самим сервером.
 const staticFront = fs.existsSync(config.webDist)
@@ -23,7 +25,7 @@ const staticFront = fs.existsSync(config.webDist)
 
 @Module({
   imports: [LoggerModule, DatabaseModule, AuthModule, AuditModule, EventsModule, ...staticFront],
-  controllers: [HealthController, ContractsController, DeliveriesController, FilesController],
-  providers: [ContractsService, DeliveriesService, FilesService, TelemetryShutdown],
+  controllers: [HealthController, ContractsController, DeliveriesController, FilesController, PoolController],
+  providers: [ContractsService, DeliveriesService, FilesService, PoolService, TelemetryShutdown],
 })
 export class AppModule {}

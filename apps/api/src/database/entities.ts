@@ -77,6 +77,36 @@ export class DeliveryLine {
   @Column('numeric', { precision: 14, scale: 3, transformer: numeric }) quantity: number;
 }
 
+/** Нерозподілене найменування: внесене без договору, потім розподіляється по договорах. */
+@Entity('pool_items')
+export class PoolItem {
+  @PrimaryGeneratedColumn() id: number;
+  @Column('text') name: string;
+  /** Нормалізована (UPPER у JS) копія для пошуку */
+  @Index() @Column('text') nameSearch: string;
+  @Column('text') unit: string;
+  @Column('numeric', { precision: 14, scale: 3, transformer: numeric }) quantity: number;
+  /** Дата внесення */
+  @Index() @Column('date') enteredOn: string;
+  @Column('text', { nullable: true }) notes: string | null;
+  @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
+}
+
+/**
+ * Скільки з нерозподіленого запису пішло в найменування договору. Видалили договір чи найменування —
+ * запис зникає каскадом і кількість повертається в нерозподілене.
+ */
+@Entity('pool_allocations')
+export class PoolAllocation {
+  @PrimaryGeneratedColumn() id: number;
+  @Index() @Column('int') poolItemId: number;
+  // Без каскаду: розподілений запис видаляти не можна.
+  @ManyToOne(() => PoolItem) poolItem: PoolItem;
+  @Index() @Column('int') orderItemId: number;
+  @ManyToOne(() => OrderItem, { onDelete: 'CASCADE' }) orderItem: OrderItem;
+  @Column('numeric', { precision: 14, scale: 3, transformer: numeric }) quantity: number;
+}
+
 /**
  * Журнал дій: хто, коли і що зробив. Без зовнішніх ключів — запис переживає видалення договору.
  * Лише додавання: UPDATE/DELETE заборонені тригером (див. міграцію).
@@ -101,4 +131,4 @@ export class AuditLog {
   @Column('jsonb', { nullable: true }) details: object | null;
 }
 
-export const entities = [StoredFile, Contract, OrderItem, Delivery, DeliveryLine, AuditLog];
+export const entities = [StoredFile, Contract, OrderItem, Delivery, DeliveryLine, PoolItem, PoolAllocation, AuditLog];

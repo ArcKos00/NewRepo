@@ -14,6 +14,8 @@ import { ContractFormPage } from './pages/ContractFormPage';
 import { DeliveryPage } from './pages/DeliveryPage';
 import { ShortfallPage } from './pages/ShortfallPage';
 import { AuditPage } from './pages/AuditPage';
+import { PoolPage } from './pages/PoolPage';
+import { PoolContractPage } from './pages/PoolContractPage';
 import { LoginPage } from './pages/LoginPage';
 
 export function App() {
@@ -58,6 +60,7 @@ export function App() {
           <nav className="nav">
             <NavLink to="/contracts" end className="btn">Замовлення</NavLink>
             <NavLink to="/deliveries" className="btn">Поставки</NavLink>
+            <NavLink to="/pool" className="btn">Нерозподілені</NavLink>
             {user?.admin && <NavLink to="/audit" className="btn">Журнал</NavLink>}
             {user && <NavLink to="/contracts/new" className="btn primary">+ Нове замовлення</NavLink>}
           </nav>
@@ -76,7 +79,8 @@ export function App() {
           </div>
         </div>
       </header>
-      <main className="wrap">
+      {/* Розподіл — три колонки, йому потрібна ширина */}
+      <main className={`wrap${location.pathname === '/pool/new-contract' ? ' wide' : ''}`}>
         {flash && <div className="alert ok" role="status" key={location.key}>{flash}</div>}
         <Routes>
           <Route path="/" element={<ContractsPage />} />
@@ -87,6 +91,8 @@ export function App() {
           <Route path="/contracts/:id/deliveries/new" element={editor(<DeliveryPage />)} />
           <Route path="/contracts/:id/shortfall" element={editor(<ShortfallPage />)} />
           <Route path="/deliveries" element={<DeliveriesPage />} />
+          <Route path="/pool" element={<PoolPage />} />
+          <Route path="/pool/new-contract" element={editor(<PoolContractPage />)} />
           <Route path="/audit" element={!user ? editor(null) : user.admin ? <AuditPage /> : <div className="panel empty">Журнал дій доступний лише адміністратору.</div>} />
           <Route path="*" element={<div className="panel empty">Сторінку не знайдено. <Link to="/contracts">До списку</Link></div>} />
         </Routes>

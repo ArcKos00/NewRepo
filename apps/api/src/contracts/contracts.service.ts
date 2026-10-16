@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import type { ContractDetails, ContractList, LiveEvent } from '@order-tracking/shared';
-import { Contract, Delivery, OrderItem, StoredFile } from '../database/entities';
+import type { ContractDetails, ContractInput, ContractList, LiveEvent } from '@order-tracking/shared';
+import { Contract, Delivery, OrderItem, PoolAllocation, StoredFile } from '../database/entities';
 import { likePattern as like, orNull, qty, round3, searchText, searchWords, today } from '../common/text';
 import { fail } from '../common/validation';
 import { FilesService } from '../files/files.service';
@@ -11,7 +11,7 @@ import { EventsService } from '../events/events.service';
 import type { AuditContext } from '../audit/audit-context';
 import { contractChanges, contractLabel, itemLine, joinChanges, shortfallChanges } from '../audit/describe';
 import { details, fileInfo, loadItems, summary } from './contract-view';
-import { ContractDto, PAGE_SIZE, SearchDto, ShortfallDto } from './dto';
+import { ContractDto, ContractHeaderDto, PAGE_SIZE, SearchDto, ShortfallDto } from './dto';
 
 const ITEM_LIKE = (param: string) =>
   `EXISTS (SELECT 1 FROM order_items i WHERE i.contract_id = c.id AND i.name_search LIKE :${param})`;
@@ -98,7 +98,7 @@ export class ContractsService {
 
   // ---------- Створення / редагування ----------
 
-  private async checkCommon(em: EntityManager, dto: ContractDto, id?: number) {
+  async checkCommon(em: EntityManager, dto: ContractHeaderDto, id?: number) {
     const errors: Record<string, string> = {};
     if (dto.expectedDeliveryDate && dto.expectedDeliveryDate < dto.contractDate)
       errors.expectedDeliveryDate = 'Не може бути раніше дати договору';
@@ -111,7 +111,7 @@ export class ContractsService {
     return errors;
   }
 
-  private applyHeader(c: Contract, dto: ContractDto) {
+  private applyHeader(c: Contract, dto: ContractHeaderDto) {
     c.number = dto.number.trim();
     c.counterparty = dto.counterparty.trim();
     c.numberSearch = searchText(dto.number);
@@ -132,23 +132,32 @@ export class ContractsService {
         if (row.id) errors[`items.${i}.name`] = 'Нове замовлення не може містити наявні найменування';
       });
       if (Object.keys(errors).length) fail(errors);
-
-      const c = em.create(Contract);
-      this.applyHeader(c, dto);
-      await em.save(c);
-      await em.save(OrderItem, dto.items.map((i) => em.create(OrderItem, { contractId: c.id, ...this.itemFields(i) })));
-      const after = await details(em, c, today());
-      await this.changed(em, c.id, 'created');
-      await this.audit.record(em, ctx, {
-        action: 'contract.create',
-        entityType: 'contract',
-        entityId: c.id,
-        contractId: c.id,
-        summary: `Створено договір ${contractLabel(c)}: ${after.items.map((i) => itemLine(i, i.quantity)).join('; ')}`,
-        details: { after },
-      });
-      return after;
+      return (await this.insert(em, dto, ctx)).after;
     });
+  }
+
+  /**
+   * Новий договір у транзакції `em` (поля вже перевірені). Повертає й збережені найменування —
+   * у порядку `dto.items`. `source` — звідки договір, для журналу («з нерозподіленого»).
+   */
+  async insert(em: EntityManager, dto: ContractInput, ctx: AuditContext, source?: string) {
+    const c = em.create(Contract);
+    this.applyHeader(c, dto);
+    await em.save(c);
+    const items = await em.save(OrderItem, dto.items.map((i) => em.create(OrderItem, { contractId: c.id, ...this.itemFields(i) })));
+    const after = await details(em, c, today());
+    await this.changed(em, c.id, 'created');
+    await this.audit.record(em, ctx, {
+      action: 'contract.create',
+      entityType: 'contract',
+      entityId: c.id,
+      contractId: c.id,
+      summary:
+        `Створено договір ${contractLabel(c)}${source ? ` ${source}` : ''}: ` +
+        after.items.map((i) => itemLine(i, i.quantity)).join('; '),
+      details: { after },
+    });
+    return { after, items };
   }
 
   async update(id: number, dto: ContractDto, ctx: AuditContext): Promise<ContractDetails> {
@@ -185,6 +194,8 @@ export class ContractsService {
         if (row.id) await em.update(OrderItem, { id: row.id }, this.itemFields(row));
         else await em.save(OrderItem, em.create(OrderItem, { contractId: id, ...this.itemFields(row) }));
       }
+      // Видалені найменування повернули свою кількість у нерозподілене каскадом; зменшені — повертають надлишок.
+      const returned = await this.trimAllocations(em, id);
       const after = await details(em, c, today());
       await this.changed(em, id);
       await this.audit.record(em, ctx, {
@@ -193,10 +204,40 @@ export class ContractsService {
         entityId: id,
         contractId: id,
         summary: joinChanges(`Змінено договір ${contractLabel(before)}`, contractChanges(before, after)),
-        details: { before, after },
+        details: { before, after, ...(returned.length ? { returnedToPool: returned } : {}) },
       });
       return after;
     });
+  }
+
+  /**
+   * Найменування договору, у якого з нерозподіленого взято більше, ніж тепер замовлено, — надлишок
+   * повертається в нерозподілене (спершу з останніх розподілів).
+   */
+  private async trimAllocations(em: EntityManager, contractId: number) {
+    const rows: { id: number; order_item_id: number; quantity: string; ordered: string }[] = await em.query(
+      `SELECT a.id, a.order_item_id, a.quantity, i.quantity AS ordered
+         FROM pool_allocations a JOIN order_items i ON i.id = a.order_item_id
+        WHERE i.contract_id = $1
+        ORDER BY a.order_item_id, a.id`,
+      [contractId],
+    );
+    const byItem = new Map<number, typeof rows>();
+    for (const r of rows) byItem.set(r.order_item_id, [...(byItem.get(r.order_item_id) ?? []), r]);
+    const returned: { allocationId: number; quantity: number }[] = [];
+    for (const list of byItem.values()) {
+      let excess = round3(list.reduce((s, r) => s + Number(r.quantity), 0) - Number(list[0].ordered));
+      for (const r of [...list].reverse()) {
+        if (excess <= 0) break;
+        const q = Number(r.quantity);
+        const take = Math.min(q, excess);
+        if (take >= q) await em.delete(PoolAllocation, { id: r.id });
+        else await em.update(PoolAllocation, { id: r.id }, { quantity: round3(q - take) });
+        returned.push({ allocationId: r.id, quantity: round3(take) });
+        excess = round3(excess - take);
+      }
+    }
+    return returned;
   }
 
   async remove(id: number, ctx: AuditContext): Promise<void> {
@@ -209,6 +250,7 @@ export class ContractsService {
       const files = fileIds.length ? await em.findBy(StoredFile, { id: In(fileIds) }) : [];
       // Спершу поставки (їх рядки посилаються на найменування), потім договір — найменування каскадом.
       await em.delete(Delivery, { contractId: id });
+      // Розподілене з нерозподіленого повертається туди каскадом (клієнт перечитує його на подію договору).
       await em.delete(Contract, { id });
       if (files.length) await em.delete(StoredFile, { id: In(fileIds) });
       await this.changed(em, id, 'deleted');

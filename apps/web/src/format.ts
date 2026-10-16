@@ -1,4 +1,4 @@
-import type { ContractStatus } from '@order-tracking/shared';
+import type { ContractStatus, PoolStatus } from '@order-tracking/shared';
 
 export const fdate = (d: string | null) => (d ? d.split('-').reverse().join('.') : '—');
 
@@ -28,4 +28,10 @@ export const STATUS_TEXT: Record<ContractStatus, string> = {
   partial: 'Частково поставлено',
   overdue: 'Прострочено',
   completed: 'Виконано',
+};
+
+export const POOL_STATUS_TEXT: Record<PoolStatus, string> = {
+  unallocated: 'Нерозподілено',
+  partial: 'Частково розподілено',
+  allocated: 'Розподілено',
 };
