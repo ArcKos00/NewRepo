@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ContractDetails, ContractInput } from '@order-tracking/shared';
 import { api } from '../api';
 import { fq, parseQty, today } from '../format';
-import { FieldError, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
+import { DraftCheckbox, FieldError, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
 
 interface Row {
   key: number;
@@ -45,6 +45,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
   const [contractDate, setContractDate] = useState(existing?.contractDate ?? today());
   const [expected, setExpected] = useState(existing?.expectedDeliveryDate ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [draft, setDraft] = useState(existing?.draft ?? false);
   const [file, setFile] = useState<File | null>(null);
   const [removeFile, setRemoveFile] = useState(false);
   const [rows, setRows] = useState<Row[]>(() =>
@@ -66,6 +67,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
         contractDate,
         expectedDeliveryDate: expected || null,
         notes: notes || null,
+        draft,
         items: filled.map((r) => ({ id: r.id, name: r.name, unit: r.unit, quantity: parseQty(r.quantity) as number })),
       };
       let saved = existing ? await api.update(existing.id, input) : await api.create(input);
@@ -145,6 +147,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
             <label className="f wide">Примітки
               <textarea id="f-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
             </label>
+            <DraftCheckbox id="f-draft" checked={draft} onChange={setDraft} />
           </div>
         </div>
 

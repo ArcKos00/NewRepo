@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PoolContractInput, PoolItem } from '@order-tracking/shared';
 import { api } from '../api';
 import { fdate, fq, parseQty, today } from '../format';
-import { FieldError, FormError, LoadError, Loading, Modal, useFieldErrors } from '../components/ui';
+import { DraftCheckbox, FieldError, FormError, LoadError, Loading, Modal, useFieldErrors } from '../components/ui';
 
 /** Що тягнемо: запис зліва (у замовлення) чи рядок справа (назад, тобто прибрати). */
 const DND_POOL = 'application/x-pool-item';
@@ -47,6 +47,7 @@ export function PoolContractPage() {
   const [contractDate, setContractDate] = useState(today());
   const [expected, setExpected] = useState('');
   const [notes, setNotes] = useState('');
+  const [draft, setDraft] = useState(false);
 
   const save = useMutation({
     mutationFn: (input: PoolContractInput) => api.createFromPool(input),
@@ -137,6 +138,7 @@ export function PoolContractPage() {
       contractDate,
       expectedDeliveryDate: expected || null,
       notes: notes || null,
+      draft,
       lines: lines.map((l) => ({ poolItemId: l.poolItemId, quantity: parseQty(l.quantity) as number })),
     });
 
@@ -232,6 +234,7 @@ export function PoolContractPage() {
             <label className="f">Примітки
               <textarea value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} />
             </label>
+            <DraftCheckbox checked={draft} onChange={setDraft} />
             <button className="btn primary" type="submit" disabled={save.isPending}>Створити договір</button>
             <span className="small muted">Файл договору можна додати потім у редагуванні.</span>
           </div>
@@ -250,6 +253,7 @@ export function PoolContractPage() {
             <dt>Контрагент</dt><dd>{counterparty}</dd>
             <dt>Дата договору</dt><dd className="num">{fdate(contractDate)}</dd>
             <dt>Орієнтовна дата поставки</dt><dd className="num">{fdate(expected || null)}</dd>
+            <dt>Стан</dt><dd>{draft ? 'Сформовано, не підписано' : 'Підписано'}</dd>
           </dl>
           <div className="small">
             <b>Найменування ({lines.length}):</b>

@@ -41,7 +41,8 @@ export async function loadItems(em: EntityManager, contractIds: number[]): Promi
   return result;
 }
 
-export function statusOf(items: OrderItemView[], expected: string | null, today: string): ContractStatus {
+export function statusOf(items: OrderItemView[], expected: string | null, today: string, draft = false): ContractStatus {
+  if (draft) return 'draft';
   const pending = items.reduce((s, i) => s + i.pending, 0);
   if (items.length === 0 || pending <= 0) return 'completed';
   if (expected && expected < today) return 'overdue';
@@ -56,7 +57,8 @@ export function summary(c: Contract, items: OrderItemView[], today: string): Con
     counterparty: c.counterparty,
     contractDate: c.contractDate,
     expectedDeliveryDate: c.expectedDeliveryDate,
-    status: statusOf(items, c.expectedDeliveryDate, today),
+    draft: c.draft,
+    status: statusOf(items, c.expectedDeliveryDate, today, c.draft),
     totals: { quantity: sum('quantity'), received: sum('received'), cancelled: sum('cancelled'), pending: sum('pending') },
     items,
   };

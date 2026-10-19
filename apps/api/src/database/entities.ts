@@ -27,6 +27,8 @@ export class Contract {
   @Index() @Column('date') contractDate: string;
   @Column('date', { nullable: true }) expectedDeliveryDate: string | null;
   @Column('text', { nullable: true }) notes: string | null;
+  /** Сформовано, не підписано — очікує на подальші дії (стан «draft») */
+  @Column('boolean', { default: false }) draft: boolean;
   @Column('int', { nullable: true }) fileId: number | null;
   @ManyToOne(() => StoredFile, { onDelete: 'SET NULL' }) @JoinColumn() file: StoredFile | null;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;

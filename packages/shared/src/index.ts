@@ -1,6 +1,7 @@
 /** Спільні типи API між apps/api і apps/web. Лише типи: імпортуються через `import type`. */
 
-export type ContractStatus = 'waiting' | 'partial' | 'overdue' | 'completed';
+/** draft — договір сформовано, але ще не підписано (позначає менеджер); інші стани рахуються з поставок. */
+export type ContractStatus = 'draft' | 'waiting' | 'partial' | 'overdue' | 'completed';
 
 export interface FileInfo {
   id: number;
@@ -33,6 +34,8 @@ export interface ContractSummary {
   counterparty: string;
   contractDate: string;
   expectedDeliveryDate: string | null;
+  /** Сформовано, не підписано — очікує на подальші дії */
+  draft: boolean;
   status: ContractStatus;
   totals: Totals;
   items: OrderItem[];
@@ -71,6 +74,8 @@ export interface ContractInput {
   contractDate: string;
   expectedDeliveryDate: string | null;
   notes: string | null;
+  /** Сформовано, не підписано; не передали — false */
+  draft?: boolean;
   items: ContractItemInput[];
 }
 

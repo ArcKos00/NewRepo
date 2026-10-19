@@ -11,7 +11,7 @@ import { EventsService } from '../events/events.service';
 import type { AuditContext } from '../audit/audit-context';
 import { contractChanges, contractLabel, itemLine, joinChanges, shortfallChanges } from '../audit/describe';
 import { details, fileInfo, loadItems, summary } from './contract-view';
-import { ContractDto, ContractHeaderDto, PAGE_SIZE, SearchDto, ShortfallDto } from './dto';
+import { ContractDto, ContractHeaderDto, DraftDto, PAGE_SIZE, SearchDto, ShortfallDto } from './dto';
 
 const ITEM_LIKE = (param: string) =>
   `EXISTS (SELECT 1 FROM order_items i WHERE i.contract_id = c.id AND i.name_search LIKE :${param})`;
@@ -19,6 +19,7 @@ const ITEM_LIKE = (param: string) =>
 /** Стан договору в SQL — те саме, що statusOf() у contract-view.ts (щоб фільтрувати до пагінації). */
 const STATUS_SQL = `(
   SELECT CASE
+    WHEN c.draft THEN 'draft'
     WHEN COUNT(*) = 0 OR SUM(GREATEST(0, i.quantity - i.cancelled_quantity - COALESCE(r.received, 0))) <= 0 THEN 'completed'
     WHEN c.expected_delivery_date < :today THEN 'overdue'
     WHEN BOOL_OR(COALESCE(r.received, 0) > 0) THEN 'partial'
@@ -119,6 +120,7 @@ export class ContractsService {
     c.contractDate = dto.contractDate;
     c.expectedDeliveryDate = orNull(dto.expectedDeliveryDate);
     c.notes = orNull(dto.notes);
+    c.draft = dto.draft ?? false;
   }
 
   private itemFields(i: { name: string; unit: string; quantity: number }) {
@@ -321,6 +323,31 @@ export class ContractsService {
     });
     this.files.removeFromDisk([old]);
     return result;
+  }
+
+  // ---------- Сформовано, не підписано ----------
+
+  /** Позначка «сформовано, не підписано» без редагування договору (наприклад, договір підписали). */
+  async setDraft(id: number, dto: DraftDto, ctx: AuditContext): Promise<ContractDetails> {
+    return this.ds.transaction(async (em) => {
+      const c = await this.lock(em, id);
+      const was = c.draft;
+      c.draft = dto.draft;
+      await em.save(c);
+      await this.changed(em, id);
+      await this.audit.record(em, ctx, {
+        action: 'contract.draft',
+        entityType: 'contract',
+        entityId: id,
+        contractId: id,
+        summary:
+          was === c.draft
+            ? `Договір ${contractLabel(c)}: позначка «сформовано, не підписано» (без змін)`
+            : `Договір ${contractLabel(c)}: ${c.draft ? 'позначено «сформовано, не підписано»' : 'знято позначку «сформовано, не підписано» (підписано)'}`,
+        details: { before: { draft: was }, after: { draft: c.draft } },
+      });
+      return details(em, c, today());
+    });
   }
 
   // ---------- Недопоставка / орієнтовна дата ----------

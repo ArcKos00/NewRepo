@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Matches, Max, MaxLength,
+  ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Matches, Max, MaxLength,
   Min, ValidateIf, ValidateNested,
 } from 'class-validator';
 import type {
@@ -43,6 +43,8 @@ export class ContractHeaderDto implements Omit<ContractInput, 'items'> {
 
   @IsOptional() @IsString() @MaxLength(2000, { message: 'Не довше 2000 символів' })
   notes: string | null;
+
+  @IsOptional() @IsBoolean() draft?: boolean;
 }
 
 export class ContractDto extends ContractHeaderDto implements ContractInput {
@@ -71,7 +73,11 @@ export class ShortfallDto implements ShortfallInput {
   items: ShortfallItemDto[];
 }
 
-const STATUSES: ContractStatus[] = ['waiting', 'partial', 'overdue', 'completed'];
+export class DraftDto {
+  @IsBoolean() draft: boolean;
+}
+
+const STATUSES: ContractStatus[] = ['draft', 'waiting', 'partial', 'overdue', 'completed'];
 
 export const PAGE_SIZE = 25;
 

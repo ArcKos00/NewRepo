@@ -21,6 +21,8 @@ export function contractChanges(before: ContractDetails, after: ContractDetails)
   field('дата договору', d(before.contractDate), d(after.contractDate));
   field('орієнтовна дата поставки', d(before.expectedDeliveryDate), d(after.expectedDeliveryDate));
   field('примітки', t(before.notes), t(after.notes));
+  const signed = (draft: boolean) => (draft ? 'сформовано, не підписано' : 'підписано');
+  field('стан', signed(before.draft), signed(after.draft));
 
   const was = new Map(before.items.map((i) => [i.id, i]));
   const now = new Set(after.items.map((i) => i.id));

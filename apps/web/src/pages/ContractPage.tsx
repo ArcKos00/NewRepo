@@ -20,6 +20,13 @@ export function ContractPage() {
       navigate('/contracts', { state: { flash: `Договір № ${c?.number} видалено.` } });
     },
   });
+  const setDraft = useMutation({
+    mutationFn: (draft: boolean) => api.setDraft(id, draft),
+    onSuccess: (saved) => {
+      qc.setQueryData(['contract', id], saved);
+      qc.invalidateQueries({ queryKey: ['contracts'] });
+    },
+  });
   const removeDelivery = useMutation({
     mutationFn: (deliveryId: number) => api.removeDelivery(deliveryId),
     onSuccess: () => {
@@ -44,7 +51,12 @@ export function ContractPage() {
         <div className="actions">
           {me && (
             <>
-              <Link className="btn primary" to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
+              {c.draft && (
+                <button type="button" className="btn primary" onClick={() => setDraft.mutate(false)} disabled={setDraft.isPending}>
+                  Підписано
+                </button>
+              )}
+              <Link className={c.draft ? 'btn' : 'btn primary'} to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
               <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
               <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
             </>
@@ -57,7 +69,7 @@ export function ContractPage() {
           )}
         </div>
       </div>
-      <FormError error={removeContract.error ?? removeDelivery.error} />
+      <FormError error={removeContract.error ?? setDraft.error ?? removeDelivery.error} />
 
       <div className="qty4">
         <div><span className="k">Замовлено</span><span className="v">{fq(c.totals.quantity)}</span></div>
@@ -71,6 +83,7 @@ export function ContractPage() {
           <dt>Номер договору</dt><dd>{c.number}</dd>
           <dt>Дата договору</dt><dd className="num">{fdate(c.contractDate)}</dd>
           <dt>Контрагент</dt><dd>{c.counterparty}</dd>
+          {c.draft && <><dt>Стан</dt><dd><span className="c-warn">Сформовано, не підписано</span> <span className="muted small">— очікує на подальші дії</span></dd></>}
           <dt>Орієнтовна дата поставки</dt>
           <dd>
             <span className="num">{fdate(c.expectedDeliveryDate)}</span>

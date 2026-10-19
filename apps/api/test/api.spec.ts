@@ -185,6 +185,34 @@ describe('пошук', () => {
     await http.delete(`/api/contracts/${overdue.id}`).expect(204);
   });
 
+  it('сформовано, не підписано: стан draft, фільтр, позначка знімається', async () => {
+    const res = await http.post('/api/contracts').send(contract({
+      number: 'ЧЕР-1', draft: true, items: [{ name: 'Шуруп', unit: 'шт', quantity: 10 }],
+    })).expect(201);
+    const draft: ContractDetails = res.body;
+    expect(draft).toMatchObject({ draft: true, status: 'draft' });
+    expect(await found({ status: 'draft' })).toEqual(['ЧЕР-1']);
+    expect(await found({ status: 'waiting', number: 'ЧЕР' })).toEqual([]);
+
+    // Редагування без поля draft — договір стає підписаним (як і старі клієнти).
+    const edited = (await http.put(`/api/contracts/${draft.id}`).send(contract({
+      number: 'ЧЕР-1', items: [{ id: draft.items[0].id, name: 'Шуруп', unit: 'шт', quantity: 10 }],
+    })).expect(200)).body as ContractDetails;
+    expect(edited).toMatchObject({ draft: false, status: 'waiting' });
+
+    expect((await http.put(`/api/contracts/${draft.id}/draft`).send({ draft: true }).expect(200)).body.status).toBe('draft');
+    const signed = (await http.put(`/api/contracts/${draft.id}/draft`).send({ draft: false }).expect(200)).body as ContractDetails;
+    expect(signed).toMatchObject({ draft: false, status: 'waiting' });
+    await http.put(`/api/contracts/${draft.id}/draft`).send({ draft: 'так' }).expect(422);
+    expect(await found({ status: 'draft' })).toEqual([]);
+
+    const { entries } = (await http.get('/api/audit').query({ contractId: draft.id, pageSize: 100 }).expect(200)).body;
+    const summaries = entries.map((e: { summary: string }) => e.summary).join('\n');
+    expect(summaries).toMatch(/стан: сформовано, не підписано → підписано/);
+    expect(summaries).toMatch(/знято позначку «сформовано, не підписано»/);
+    await http.delete(`/api/contracts/${draft.id}`).expect(204);
+  });
+
   it('сторінками: total — усього під фільтр', async () => {
     const page = async (n: number) =>
       (await http.get('/api/contracts').query({ page: n, pageSize: 1 }).expect(200)).body as ContractList;

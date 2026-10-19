@@ -84,6 +84,7 @@ td.tight { white-space: nowrap; }
 .form-tbl td { vertical-align: middle; }
 
 .pill { display: inline-block; font-size: .75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; vertical-align: middle; }
+.st-draft { background: var(--warn-soft); color: var(--warn); }
 .st-waiting { background: var(--neutral-soft); color: var(--muted); }
 .st-partial { background: var(--info-soft); color: var(--info); }
 .st-overdue { background: var(--danger-soft); color: var(--danger); }
@@ -101,6 +102,7 @@ td.tight { white-space: nowrap; }
 .c-ok { color: var(--ok); }
 .c-info { color: var(--info); }
 .c-danger { color: var(--danger); }
+.c-warn { color: var(--warn); }
 @media (max-width: 560px) { .qty4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 dl.meta { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 8px 16px; margin: 0; }

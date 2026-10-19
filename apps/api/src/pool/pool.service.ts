@@ -194,6 +194,7 @@ export class PoolService {
           contractDate: dto.contractDate,
           expectedDeliveryDate: dto.expectedDeliveryDate,
           notes: dto.notes,
+          draft: dto.draft,
           items: rows.map(({ name, unit, quantity }) => ({ name, unit, quantity })),
         },
         ctx,

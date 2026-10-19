@@ -11,6 +11,16 @@ export function PoolStatusPill({ status }: { status: PoolStatus }) {
   return <span className={`pill ps-${status}`}>{POOL_STATUS_TEXT[status]}</span>;
 }
 
+/** Прапорець «сформовано, не підписано» у формах договору. */
+export function DraftCheckbox({ id, checked, onChange }: { id?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="inline wide">
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{' '}
+      Сформовано, не підписано <span className="muted small">— очікує на подальші дії</span>
+    </label>
+  );
+}
+
 /** Модальне вікно (нативний <dialog>): Esc і клік повз — закрити, фокус лишається всередині. */
 export function Modal({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);

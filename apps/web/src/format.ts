@@ -24,6 +24,7 @@ export function parseQty(s: string): number | null {
 }
 
 export const STATUS_TEXT: Record<ContractStatus, string> = {
+  draft: 'Сформовано, не підписано',
   waiting: 'Очікується',
   partial: 'Частково поставлено',
   overdue: 'Прострочено',

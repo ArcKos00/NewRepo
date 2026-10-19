@@ -7,6 +7,7 @@ import { Init1759650000000 } from './migrations/1759650000000-Init';
 import { AuditSessions1760400000000 } from './migrations/1760400000000-AuditSessions';
 import { DeliverySearch1760500000000 } from './migrations/1760500000000-DeliverySearch';
 import { Pool1760600000000 } from './migrations/1760600000000-Pool';
+import { ContractDraft1760800000000 } from './migrations/1760800000000-ContractDraft';
 import { typeOrmLogging } from '../logging/typeorm-logger';
 
 @Module({
@@ -15,7 +16,7 @@ import { typeOrmLogging } from '../logging/typeorm-logger';
       type: 'postgres',
       url: config.databaseUrl,
       entities,
-      migrations: [Init1759650000000, AuditSessions1760400000000, DeliverySearch1760500000000, Pool1760600000000],
+      migrations: [Init1759650000000, AuditSessions1760400000000, DeliverySearch1760500000000, Pool1760600000000, ContractDraft1760800000000],
       migrationsRun: true,
       synchronize: false,
       namingStrategy: new SnakeNamingStrategy(),

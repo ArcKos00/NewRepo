@@ -92,6 +92,16 @@ describe('нерозподілені найменування', () => {
     expect((await byId(paperA.id)).remaining).toBe(40);
   });
 
+  it('договір з нерозподіленого можна позначити «сформовано, не підписано»', async () => {
+    const draft = (await http.post('/api/pool/contract').send({
+      ...header('П-3'), draft: true, lines: [{ poolItemId: paperA.id, quantity: 10 }],
+    }).expect(201)).body as ContractDetails;
+    expect(draft).toMatchObject({ draft: true, status: 'draft' });
+    expect((await byId(paperA.id)).remaining).toBe(30);
+    await http.delete(`/api/contracts/${draft.id}`).expect(204);
+    expect((await byId(paperA.id)).remaining).toBe(40);
+  });
+
   it('розподілений запис видалити не можна, нерозподілений — можна', async () => {
     await http.delete(`/api/pool/${paperA.id}`).expect(422);
     const extra = await add({ name: 'Скріпки' });

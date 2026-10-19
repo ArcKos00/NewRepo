@@ -6,7 +6,7 @@ import { uploadOptions } from '../common/multipart';
 import { Viewable } from '../auth/auth.guard';
 import { AuditContext, Ctx } from '../audit/audit-context';
 import { ContractsService } from './contracts.service';
-import { ContractDto, SearchDto, ShortfallDto } from './dto';
+import { ContractDto, DraftDto, SearchDto, ShortfallDto } from './dto';
 
 @Controller('contracts')
 export class ContractsController {
@@ -59,6 +59,12 @@ export class ContractsController {
   @Delete(':id/file')
   removeFile(@Param('id', ParseIntPipe) id: number, @Ctx() ctx: AuditContext) {
     return this.contracts.removeFile(id, ctx);
+  }
+
+  /** Позначка «сформовано, не підписано» */
+  @Put(':id/draft')
+  setDraft(@Param('id', ParseIntPipe) id: number, @Body() dto: DraftDto, @Ctx() ctx: AuditContext) {
+    return this.contracts.setDraft(id, dto, ctx);
   }
 
   /** Недопоставка ("не зможуть") та орієнтовна дата поставки */

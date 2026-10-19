@@ -80,6 +80,7 @@ export const api = {
     return request<ContractDetails>('PUT', `/contracts/${id}/file`, fd);
   },
   removeFile: (id: number) => request<ContractDetails>('DELETE', `/contracts/${id}/file`),
+  setDraft: (id: number, draft: boolean) => request<ContractDetails>('PUT', `/contracts/${id}/draft`, { draft }),
   updateShortfall: (id: number, input: ShortfallInput) =>
     request<ContractDetails>('PUT', `/contracts/${id}/shortfall`, input),
   addDelivery: (id: number, input: DeliveryInput, file?: File | null) => {
