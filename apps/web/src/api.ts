@@ -4,6 +4,7 @@ import type {
   ValidationErrorBody,
 } from '@order-tracking/shared';
 import { tabId } from './tracking';
+import { checkBuild } from './version';
 
 export class ApiError extends Error {
   constructor(
@@ -39,6 +40,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   } catch {
     throw new ApiError(0, 'Немає зв’язку з сервером. Перевірте мережу і спробуйте ще раз.');
   }
+  checkBuild(res);
   if (res.status === 204) return undefined as T;
 
   const data = await res.json().catch(() => null);

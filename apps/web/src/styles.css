@@ -70,6 +70,8 @@ textarea { resize: vertical; min-height: 56px; }
 .alert { padding: 10px 14px; border-radius: 6px; }
 .alert.ok { background: var(--ok-soft); color: var(--ok); }
 .alert.bad { background: var(--danger-soft); color: var(--danger); }
+.alert.info { background: var(--info-soft); color: var(--info); }
+.alert.update { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 .tbl-box { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }

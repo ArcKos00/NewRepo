@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
 import { flush, startTracking, trackNavigation } from './tracking';
 import { useLiveUpdates } from './live';
+import { useOutdated } from './version';
 import { loginHref, meQuery } from './user';
 import { THEMES, useTheme, type ThemeChoice } from './theme';
 import { LoadError, Loading } from './components/ui';
@@ -26,6 +27,7 @@ export function App() {
   const me = useQuery({ ...meQuery, enabled: !onLogin });
   const user = me.data;
   const [theme, setTheme] = useTheme();
+  const outdated = useOutdated();
 
   // Живі оновлення — і для перегляду без входу.
   useLiveUpdates(!onLogin && me.isSuccess);
@@ -86,6 +88,12 @@ export function App() {
       </header>
       {/* Розподіл — три колонки, йому потрібна ширина */}
       <main className={`wrap${location.pathname === '/pool/new-contract' ? ' wide' : ''}`}>
+        {outdated && (
+          <div className="alert info update" role="status">
+            Вийшла нова версія — оновиться при переході на іншу сторінку.
+            <button type="button" className="btn sm" onClick={() => window.location.reload()}>Оновити зараз</button>
+          </div>
+        )}
         {flash && <div className="alert ok" role="status" key={location.key}>{flash}</div>}
         <Routes>
           <Route path="/" element={<ContractsPage />} />
