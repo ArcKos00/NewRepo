@@ -86,6 +86,10 @@ td.tight { white-space: nowrap; }
 .form-tbl td { vertical-align: middle; }
 
 .pill { display: inline-block; font-size: .75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; vertical-align: middle; }
+/* Етапи до підписання — контуром (outline не змінює розмір плашки): пунктир → суцільний → із заливкою. */
+.st-planned { background: transparent; color: var(--muted); outline: 1px dashed var(--border-strong); outline-offset: -1px; }
+.st-tender_announced { background: transparent; color: var(--info); outline: 1px dashed var(--info); outline-offset: -1px; }
+.st-tender_held { background: transparent; color: var(--info); outline: 1px solid var(--info); outline-offset: -1px; }
 .st-draft { background: var(--warn-soft); color: var(--warn); }
 .st-waiting { background: var(--neutral-soft); color: var(--muted); }
 .st-partial { background: var(--info-soft); color: var(--info); }
@@ -173,3 +177,5 @@ dialog.modal::backdrop { background: rgba(10, 16, 14, .45); }
 
 /* Перемикач теми */
 .theme-pick { width: auto; padding: 4px 8px; font-size: .85rem; }
+/* Етап на картці договору — поруч із кнопками дій */
+.stage-pick { width: auto; }

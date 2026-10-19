@@ -1,4 +1,4 @@
-import type { ContractStatus, PoolStatus } from '@order-tracking/shared';
+import type { ContractStage, ContractStatus, PoolStatus } from '@order-tracking/shared';
 
 export const fdate = (d: string | null) => (d ? d.split('-').reverse().join('.') : '—');
 
@@ -23,10 +23,19 @@ export function parseQty(s: string): number | null {
   return /^\d+(\.\d+)?$/.test(v) ? Math.round(Number(v) * 1000) / 1000 : NaN;
 }
 
+/** Етап для людини; null — підписано. */
+export const stageText = (s: ContractStage | null) => (s ? STATUS_TEXT[s] : 'Підписано');
+
 /** «№ 123» або «без номера» (непідписаний договір може ще не мати номера). */
 export const contractNo = (number: string | null) => (number ? `№ ${number}` : 'без номера');
 
+/** Етапи до підписання — по порядку. */
+export const STAGES: ContractStage[] = ['planned', 'tender_announced', 'tender_held', 'draft'];
+
 export const STATUS_TEXT: Record<ContractStatus, string> = {
+  planned: 'Заплановано',
+  tender_announced: 'Тендер оголошено',
+  tender_held: 'Тендер відбувся',
   draft: 'Сформовано, не підписано',
   waiting: 'Очікується',
   partial: 'Частково поставлено',

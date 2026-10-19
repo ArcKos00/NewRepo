@@ -52,7 +52,7 @@ function DeliveryForm({ contract: c }: { contract: ContractDetails }) {
       <div className="head">
         <div>
           <h1>Нова поставка</h1>
-          <div className="muted">Договір {contractNo(c.number)} від <span className="num">{fdate(c.contractDate)}</span> · {c.counterparty}</div>
+          <div className="muted">Договір {contractNo(c.number)}{c.contractDate && <> від <span className="num">{fdate(c.contractDate)}</span></>}{c.counterparty && ` · ${c.counterparty}`}</div>
         </div>
       </div>
 

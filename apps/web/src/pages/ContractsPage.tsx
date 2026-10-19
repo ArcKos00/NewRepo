@@ -76,7 +76,7 @@ export function ContractsPage() {
                     <tr key={c.id} className="clickable" onClick={(e) => { if (!(e.target as HTMLElement).closest('a')) navigate(`/contracts/${c.id}`); }}>
                       <td className="tight"><Link to={`/contracts/${c.id}`}>{c.number ? <b>{c.number}</b> : <i className="muted">без номера</i>}</Link></td>
                       <td className="tight num">{fdate(c.contractDate)}</td>
-                      <td>{c.counterparty}</td>
+                      <td>{c.counterparty ?? <span className="muted">—</span>}</td>
                       <td className="small">
                         {shown.map((i) => (
                           <div key={i.id}>

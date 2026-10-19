@@ -1,10 +1,10 @@
 import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PoolContractInput, PoolItem } from '@order-tracking/shared';
+import type { ContractStage, PoolContractInput, PoolItem } from '@order-tracking/shared';
 import { api } from '../api';
-import { contractNo, fdate, fq, parseQty, today } from '../format';
-import { DraftCheckbox, FieldError, FormError, LoadError, Loading, Modal, useFieldErrors } from '../components/ui';
+import { contractNo, fdate, fq, parseQty, stageText, today } from '../format';
+import { FieldError, StageSelect, FormError, LoadError, Loading, Modal, useFieldErrors } from '../components/ui';
 
 /** Що тягнемо: запис зліва (у замовлення) чи рядок справа (назад, тобто прибрати). */
 const DND_POOL = 'application/x-pool-item';
@@ -47,7 +47,9 @@ export function PoolContractPage() {
   const [contractDate, setContractDate] = useState(today());
   const [expected, setExpected] = useState('');
   const [notes, setNotes] = useState('');
-  const [draft, setDraft] = useState(false);
+  const [stage, setStage] = useState<ContractStage | null>(null);
+  const dateTouched = useRef(false);
+  const unsigned = stage !== null;
 
   const save = useMutation({
     mutationFn: (input: PoolContractInput) => api.createFromPool(input),
@@ -111,9 +113,11 @@ export function PoolContractPage() {
   const check = () => {
     const errors: Record<string, string> = {};
     if (!lines.length) errors._ = 'Перетягніть у замовлення хоча б одне найменування.';
-    if (!number.trim() && !draft) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
-    if (!counterparty.trim()) errors.counterparty = 'Вкажіть контрагента';
-    if (!contractDate) errors.contractDate = 'Вкажіть дату договору';
+    if (!unsigned) {
+      if (!number.trim()) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
+      if (!counterparty.trim()) errors.counterparty = 'Вкажіть контрагента (без нього — лише непідписаний)';
+      if (!contractDate) errors.contractDate = 'Вкажіть дату договору (без неї — лише непідписаний)';
+    }
     if (expected && contractDate && expected < contractDate) errors.expectedDeliveryDate = 'Не може бути раніше дати договору';
     lines.forEach((l, i) => {
       const q = parseQty(l.quantity);
@@ -135,10 +139,10 @@ export function PoolContractPage() {
     save.mutate({
       number,
       counterparty,
-      contractDate,
+      contractDate: contractDate || null,
       expectedDeliveryDate: expected || null,
       notes: notes || null,
-      draft,
+      stage,
       lines: lines.map((l) => ({ poolItemId: l.poolItemId, quantity: parseQty(l.quantity) as number })),
     });
 
@@ -210,20 +214,25 @@ export function PoolContractPage() {
         <form className="panel alloc-form" onSubmit={submit} noValidate>
           <div className="panel-h">Договір</div>
           <div className="panel-b stack-sm">
-            <label className="f">Номер договору
+            <StageSelect value={stage} onChange={(s) => {
+              setStage(s);
+              if (!dateTouched.current) setContractDate(s ? '' : today());
+              ['number', 'counterparty', 'contractDate'].forEach(edit);
+            }} />
+            <label className="f">Номер договору{unsigned && <span className="muted small"> (можна пізніше)</span>}
               <input className={err('number') ? 'invalid' : ''} value={number} maxLength={100} autoComplete="off"
                 onChange={(e) => { setNumber(e.target.value); edit('number'); }} />
               <FieldError message={err('number')} />
             </label>
-            <label className="f">Контрагент (постачальник)
+            <label className="f">Контрагент (постачальник){unsigned && <span className="muted small"> (можна пізніше)</span>}
               <input className={err('counterparty') ? 'invalid' : ''} value={counterparty} maxLength={300} list="alloc-counterparties"
                 onChange={(e) => { setCounterparty(e.target.value); edit('counterparty'); edit('number'); }} />
               <datalist id="alloc-counterparties">{counterparties.map((cp) => <option key={cp} value={cp} />)}</datalist>
               <FieldError message={err('counterparty')} />
             </label>
-            <label className="f">Дата договору
+            <label className="f">Дата договору{unsigned && <span className="muted small"> (можна пізніше)</span>}
               <input type="date" className={err('contractDate') ? 'invalid' : ''} value={contractDate}
-                onChange={(e) => { setContractDate(e.target.value); edit('contractDate'); edit('expectedDeliveryDate'); }} />
+                onChange={(e) => { setContractDate(e.target.value); dateTouched.current = true; edit('contractDate'); edit('expectedDeliveryDate'); }} />
               <FieldError message={err('contractDate')} />
             </label>
             <label className="f">Орієнтовна дата поставки
@@ -234,7 +243,6 @@ export function PoolContractPage() {
             <label className="f">Примітки
               <textarea value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} />
             </label>
-            <DraftCheckbox checked={draft} onChange={(v) => { setDraft(v); edit('number'); }} />
             <button className="btn primary" type="submit" disabled={save.isPending}>Створити договір</button>
             <span className="small muted">Файл договору можна додати потім у редагуванні.</span>
           </div>
@@ -249,11 +257,11 @@ export function PoolContractPage() {
       {confirming && (
         <Modal title="Створити договір?" onClose={() => !save.isPending && setConfirming(false)}>
           <dl className="meta small">
+            <dt>Етап</dt><dd>{stageText(stage)}</dd>
             <dt>Номер договору</dt><dd>{number.trim() || <span className="muted">без номера</span>}</dd>
-            <dt>Контрагент</dt><dd>{counterparty}</dd>
+            <dt>Контрагент</dt><dd>{counterparty.trim() || <span className="muted">—</span>}</dd>
             <dt>Дата договору</dt><dd className="num">{fdate(contractDate)}</dd>
             <dt>Орієнтовна дата поставки</dt><dd className="num">{fdate(expected || null)}</dd>
-            <dt>Стан</dt><dd>{draft ? 'Сформовано, не підписано' : 'Підписано'}</dd>
           </dl>
           <div className="small">
             <b>Найменування ({lines.length}):</b>

@@ -10,7 +10,7 @@ import { EventsService } from '../events/events.service';
 import type { AuditContext } from '../audit/audit-context';
 import { contractLabel, fmtDate, itemLine } from '../audit/describe';
 import { ContractsService } from '../contracts/contracts.service';
-import { PAGE_SIZE } from '../contracts/dto';
+import { PAGE_SIZE, stageOf } from '../contracts/dto';
 import { PoolContractDto, PoolItemDto, PoolSearchDto } from './dto';
 
 const ALLOCATED_SQL = `COALESCE((SELECT SUM(a.quantity) FROM pool_allocations a WHERE a.pool_item_id = p.id), 0)`;
@@ -32,7 +32,7 @@ export class PoolService {
 
   /** Записи з порахованим «розподілено» і договорами, куди пішли. */
   private async view(em: EntityManager, items: PoolItem[]): Promise<PoolItemView[]> {
-    const rows: { pool_item_id: number; contract_id: number; number: string; counterparty: string; quantity: string }[] =
+    const rows: { pool_item_id: number; contract_id: number; number: string | null; counterparty: string | null; quantity: string }[] =
       items.length
         ? await em.query(
             `SELECT a.pool_item_id, c.id AS contract_id, c.number, c.counterparty, SUM(a.quantity) AS quantity
@@ -194,7 +194,7 @@ export class PoolService {
           contractDate: dto.contractDate,
           expectedDeliveryDate: dto.expectedDeliveryDate,
           notes: dto.notes,
-          draft: dto.draft,
+          stage: stageOf(dto),
           items: rows.map(({ name, unit, quantity }) => ({ name, unit, quantity })),
         },
         ctx,

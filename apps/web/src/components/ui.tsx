@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import type { ContractStatus, PoolStatus } from '@order-tracking/shared';
+import type { ContractStage, ContractStatus, PoolStatus } from '@order-tracking/shared';
 import { ApiError } from '../api';
-import { POOL_STATUS_TEXT, STATUS_TEXT } from '../format';
+import { POOL_STATUS_TEXT, STAGES, STATUS_TEXT } from '../format';
 
 export function StatusPill({ status }: { status: ContractStatus }) {
   return <span className={`pill st-${status}`}>{STATUS_TEXT[status]}</span>;
@@ -11,12 +11,14 @@ export function PoolStatusPill({ status }: { status: PoolStatus }) {
   return <span className={`pill ps-${status}`}>{POOL_STATUS_TEXT[status]}</span>;
 }
 
-/** Прапорець «сформовано, не підписано» у формах договору. */
-export function DraftCheckbox({ id, checked, onChange }: { id?: string; checked: boolean; onChange: (v: boolean) => void }) {
+/** Етап договору у формах: до підписання (заплановано → … → сформовано) або «Підписано» (null). */
+export function StageSelect({ id, value, onChange }: { id?: string; value: ContractStage | null; onChange: (v: ContractStage | null) => void }) {
   return (
-    <label className="inline wide">
-      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{' '}
-      Сформовано, не підписано <span className="muted small">— очікує на подальші дії</span>
+    <label className="f">Етап
+      <select id={id} value={value ?? ''} onChange={(e) => onChange((e.target.value || null) as ContractStage | null)}>
+        {STAGES.map((s) => <option key={s} value={s}>{STATUS_TEXT[s]}</option>)}
+        <option value="">Підписано</option>
+      </select>
     </label>
   );
 }

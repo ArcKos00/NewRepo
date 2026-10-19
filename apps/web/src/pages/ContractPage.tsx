@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import { contractNo, fdate, fq, fsize } from '../format';
+import type { ContractStage } from '@order-tracking/shared';
+import { contractNo, fdate, fq, fsize, STAGES, STATUS_TEXT, stageText } from '../format';
 import { ConfirmButton, FormError, LoadError, Loading, ProgressBar, StatusPill } from '../components/ui';
 import { useMe } from '../user';
 
@@ -20,8 +21,8 @@ export function ContractPage() {
       navigate('/contracts', { state: { flash: `Договір ${contractNo(c?.number ?? null)} видалено.` } });
     },
   });
-  const setDraft = useMutation({
-    mutationFn: (draft: boolean) => api.setDraft(id, draft),
+  const setStage = useMutation({
+    mutationFn: (stage: ContractStage | null) => api.setStage(id, stage),
     onSuccess: (saved) => {
       qc.setQueryData(['contract', id], saved);
       qc.invalidateQueries({ queryKey: ['contracts'] });
@@ -51,10 +52,18 @@ export function ContractPage() {
         <div className="actions">
           {me && (
             <>
-              {c.draft && (c.number
-                ? <button type="button" className="btn primary" onClick={() => setDraft.mutate(false)} disabled={setDraft.isPending}>Підписано</button>
-                // Без номера підписаним не позначити: ведемо в редагування з уже знятою позначкою.
-                : <Link className="btn primary" to={`/contracts/${id}/edit?sign=1`} title="Вкажіть номер договору">Підписано…</Link>)}
+              {c.stage && (
+                <>
+                  <select className="stage-pick" aria-label="Етап" value={c.stage} disabled={setStage.isPending}
+                    onChange={(e) => setStage.mutate(e.target.value as ContractStage)}>
+                    {STAGES.map((s) => <option key={s} value={s}>{STATUS_TEXT[s]}</option>)}
+                  </select>
+                  {c.number && c.counterparty && c.contractDate
+                    ? <button type="button" className="btn primary" onClick={() => setStage.mutate(null)} disabled={setStage.isPending}>Підписано</button>
+                    // Без номера, контрагента чи дати підписаним не позначити: ведемо в редагування з етапом «Підписано».
+                    : <Link className="btn primary" to={`/contracts/${id}/edit?sign=1`} title="Вкажіть номер, контрагента й дату договору">Підписано…</Link>}
+                </>
+              )}
               <Link className={c.draft ? 'btn' : 'btn primary'} to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
               <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
               <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
@@ -68,7 +77,7 @@ export function ContractPage() {
           )}
         </div>
       </div>
-      <FormError error={removeContract.error ?? setDraft.error ?? removeDelivery.error} />
+      <FormError error={removeContract.error ?? setStage.error ?? removeDelivery.error} />
 
       <div className="qty4">
         <div><span className="k">Замовлено</span><span className="v">{fq(c.totals.quantity)}</span></div>
@@ -81,8 +90,8 @@ export function ContractPage() {
         <dl className="meta">
           <dt>Номер договору</dt><dd>{c.number ?? <span className="muted">ще немає</span>}</dd>
           <dt>Дата договору</dt><dd className="num">{fdate(c.contractDate)}</dd>
-          <dt>Контрагент</dt><dd>{c.counterparty}</dd>
-          {c.draft && <><dt>Стан</dt><dd><span className="c-warn">Сформовано, не підписано</span> <span className="muted small">— очікує на подальші дії</span></dd></>}
+          <dt>Контрагент</dt><dd>{c.counterparty ?? <span className="muted">ще не визначено</span>}</dd>
+          <dt>Етап</dt><dd className={c.stage ? 'c-warn' : undefined}>{stageText(c.stage)}</dd>
           <dt>Орієнтовна дата поставки</dt>
           <dd>
             <span className="num">{fdate(c.expectedDeliveryDate)}</span>

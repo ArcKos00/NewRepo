@@ -1,7 +1,13 @@
 /** Спільні типи API між apps/api і apps/web. Лише типи: імпортуються через `import type`. */
 
-/** draft — договір сформовано, але ще не підписано (позначає менеджер); інші стани рахуються з поставок. */
-export type ContractStatus = 'draft' | 'waiting' | 'partial' | 'overdue' | 'completed';
+/**
+ * Етап договору до підписання (виставляє менеджер): заплановано → тендер оголошено → тендер відбувся →
+ * сформовано, не підписано. null — підписано, далі стан рахується з поставок.
+ */
+export type ContractStage = 'planned' | 'tender_announced' | 'tender_held' | 'draft';
+
+/** Етап (поки не підписано) або стан виконання підписаного договору. */
+export type ContractStatus = ContractStage | 'waiting' | 'partial' | 'overdue' | 'completed';
 
 export interface FileInfo {
   id: number;
@@ -30,12 +36,14 @@ export interface Totals {
 
 export interface ContractSummary {
   id: number;
-  /** null — лише в непідписаного (draft) договору */
+  /** null у номера, контрагента й дати — лише поки договір не підписано */
   number: string | null;
-  counterparty: string;
-  contractDate: string;
+  counterparty: string | null;
+  contractDate: string | null;
   expectedDeliveryDate: string | null;
-  /** Сформовано, не підписано — очікує на подальші дії */
+  /** Етап до підписання; null — підписано */
+  stage: ContractStage | null;
+  /** Ще не підписано (stage не null) */
   draft: boolean;
   status: ContractStatus;
   totals: Totals;
@@ -70,13 +78,15 @@ export interface ContractItemInput {
 }
 
 export interface ContractInput {
-  /** Можна не вказувати (null чи ''), лише поки договір не підписано (draft) */
+  /** Номер, контрагента й дату можна не вказувати (null чи ''), лише поки договір не підписано */
   number: string | null;
-  counterparty: string;
-  contractDate: string;
+  counterparty: string | null;
+  contractDate: string | null;
   expectedDeliveryDate: string | null;
   notes: string | null;
-  /** Сформовано, не підписано; не передали — false */
+  /** Етап до підписання; null — підписано */
+  stage?: ContractStage | null;
+  /** Застаріле (до етапів): true = stage 'draft'. Враховується, лише якщо stage не передали. */
   draft?: boolean;
   items: ContractItemInput[];
 }
@@ -143,7 +153,7 @@ export interface DeliveryRow {
   invoiceNumber: string;
   notes: string | null;
   file: FileInfo | null;
-  contract: { id: number; number: string | null; counterparty: string };
+  contract: { id: number; number: string | null; counterparty: string | null };
   lines: { orderItemId: number; name: string; unit: string; quantity: number }[];
 }
 
@@ -163,7 +173,7 @@ export type PoolStatus = 'unallocated' | 'partial' | 'allocated';
 export interface PoolAllocation {
   contractId: number;
   number: string | null;
-  counterparty: string;
+  counterparty: string | null;
   quantity: number;
 }
 

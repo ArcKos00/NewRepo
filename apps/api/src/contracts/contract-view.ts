@@ -1,6 +1,6 @@
 import { EntityManager, In } from 'typeorm';
 import type {
-  ContractDetails, ContractStatus, ContractSummary, FileInfo, OrderItem as OrderItemView,
+  ContractDetails, ContractStage, ContractStatus, ContractSummary, FileInfo, OrderItem as OrderItemView,
 } from '@order-tracking/shared';
 import { Contract, Delivery, DeliveryLine, OrderItem, StoredFile } from '../database/entities';
 import { round3 } from '../common/text';
@@ -41,8 +41,8 @@ export async function loadItems(em: EntityManager, contractIds: number[]): Promi
   return result;
 }
 
-export function statusOf(items: OrderItemView[], expected: string | null, today: string, draft = false): ContractStatus {
-  if (draft) return 'draft';
+export function statusOf(items: OrderItemView[], expected: string | null, today: string, stage: ContractStage | null = null): ContractStatus {
+  if (stage) return stage;
   const pending = items.reduce((s, i) => s + i.pending, 0);
   if (items.length === 0 || pending <= 0) return 'completed';
   if (expected && expected < today) return 'overdue';
@@ -57,8 +57,9 @@ export function summary(c: Contract, items: OrderItemView[], today: string): Con
     counterparty: c.counterparty,
     contractDate: c.contractDate,
     expectedDeliveryDate: c.expectedDeliveryDate,
-    draft: c.draft,
-    status: statusOf(items, c.expectedDeliveryDate, today, c.draft),
+    stage: c.stage,
+    draft: c.stage !== null,
+    status: statusOf(items, c.expectedDeliveryDate, today, c.stage),
     totals: { quantity: sum('quantity'), received: sum('received'), cancelled: sum('cancelled'), pending: sum('pending') },
     items,
   };

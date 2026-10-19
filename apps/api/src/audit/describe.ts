@@ -1,4 +1,4 @@
-import type { ContractDetails, OrderItem } from '@order-tracking/shared';
+import type { ContractDetails, ContractStage, OrderItem } from '@order-tracking/shared';
 import { qty } from '../common/text';
 
 /** Описи змін людською мовою для журналу. */
@@ -6,8 +6,16 @@ import { qty } from '../common/text';
 const d = (s: string | null | undefined) => (s ? s.split('-').reverse().join('.') : '—');
 const t = (s: string | null | undefined) => (s ? `«${s}»` : '—');
 
-export const contractLabel = (c: { number: string | null; counterparty: string }) =>
-  `${c.number ? `№ ${c.number}` : 'без номера'} (${c.counterparty})`;
+export const contractLabel = (c: { number: string | null; counterparty: string | null }) =>
+  `${c.number ? `№ ${c.number}` : 'без номера'}${c.counterparty ? ` (${c.counterparty})` : ''}`;
+
+const STAGE_TEXT: Record<ContractStage, string> = {
+  planned: 'заплановано',
+  tender_announced: 'тендер оголошено',
+  tender_held: 'тендер відбувся',
+  draft: 'сформовано, не підписано',
+};
+export const stageText = (s: ContractStage | null) => (s ? STAGE_TEXT[s] : 'підписано');
 
 export const itemLine = (i: { name: string; unit: string }, quantity: number) => `${i.name} — ${qty(quantity)} ${i.unit}`;
 
@@ -22,8 +30,7 @@ export function contractChanges(before: ContractDetails, after: ContractDetails)
   field('дата договору', d(before.contractDate), d(after.contractDate));
   field('орієнтовна дата поставки', d(before.expectedDeliveryDate), d(after.expectedDeliveryDate));
   field('примітки', t(before.notes), t(after.notes));
-  const signed = (draft: boolean) => (draft ? 'сформовано, не підписано' : 'підписано');
-  field('стан', signed(before.draft), signed(after.draft));
+  field('етап', stageText(before.stage), stageText(after.stage));
 
   const was = new Map(before.items.map((i) => [i.id, i]));
   const now = new Set(after.items.map((i) => i.id));

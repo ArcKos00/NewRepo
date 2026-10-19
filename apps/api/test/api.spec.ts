@@ -208,8 +208,8 @@ describe('пошук', () => {
 
     const { entries } = (await http.get('/api/audit').query({ contractId: draft.id, pageSize: 100 }).expect(200)).body;
     const summaries = entries.map((e: { summary: string }) => e.summary).join('\n');
-    expect(summaries).toMatch(/стан: сформовано, не підписано → підписано/);
-    expect(summaries).toMatch(/знято позначку «сформовано, не підписано»/);
+    expect(summaries).toMatch(/етап: сформовано, не підписано → підписано/);
+    expect(summaries).toMatch(/етап «сформовано, не підписано» → «підписано»/);
     await http.delete(`/api/contracts/${draft.id}`).expect(204);
   });
 
@@ -241,6 +241,47 @@ describe('пошук', () => {
     const { entries } = (await http.get('/api/audit').query({ contractId: b.id }).expect(200)).body;
     expect(entries[0].summary).toMatch(/без номера/);
     for (const id of [a.id, b.id]) await http.delete(`/api/contracts/${id}`).expect(204);
+  });
+
+  it('етапи до підписання: без номера, контрагента й дати; підписати — лише з ними', async () => {
+    const items = [{ name: 'Генератор', unit: 'шт', quantity: 2 }];
+    const planned = (await http.post('/api/contracts').send(contract({
+      stage: 'planned', number: null, counterparty: '', contractDate: null, expectedDeliveryDate: null, items,
+    })).expect(201)).body as ContractDetails;
+    expect(planned).toMatchObject({
+      stage: 'planned', draft: true, status: 'planned', number: null, counterparty: null, contractDate: null,
+    });
+
+    // Невідомий етап; підписаний без контрагента чи дати
+    await http.post('/api/contracts').send(contract({ stage: 'won' as never, items })).expect(422);
+    const bad = await http.post('/api/contracts').send(contract({ counterparty: '', contractDate: null, items })).expect(422);
+    expect(Object.keys(bad.body.errors).sort()).toEqual(['contractDate', 'counterparty']);
+
+    // Етапи по черзі — і фільтр «Стан» за кожним
+    for (const stage of ['tender_announced', 'tender_held', 'draft'] as const) {
+      const res = (await http.put(`/api/contracts/${planned.id}/stage`).send({ stage }).expect(200)).body as ContractDetails;
+      expect(res.status).toBe(stage);
+      expect((await http.get('/api/contracts').query({ status: stage }).expect(200)).body.total).toBe(1);
+    }
+    await http.put(`/api/contracts/${planned.id}/stage`).send({ stage: 'won' }).expect(422);
+    expect((await http.put(`/api/contracts/${planned.id}/stage`).send({ stage: null }).expect(422)).body.errors._)
+      .toMatch(/номер, контрагента й дату/);
+
+    // Без дати — нагорі списку
+    expect((await http.get('/api/contracts').expect(200)).body.contracts[0].id).toBe(planned.id);
+    expect(await (await http.get('/api/contracts/counterparties').expect(200)).body).not.toContain(null);
+
+    // Заповнили все й підписали в редагуванні
+    const signed = (await http.put(`/api/contracts/${planned.id}`).send(contract({
+      number: 'Т-1', stage: null, items: [{ id: planned.items[0].id, name: 'Генератор', unit: 'шт', quantity: 2 }],
+    })).expect(200)).body as ContractDetails;
+    expect(signed).toMatchObject({ stage: null, draft: false, status: 'waiting', counterparty: 'ТОВ "Постачальник"' });
+
+    const { entries } = (await http.get('/api/audit').query({ contractId: planned.id, pageSize: 100 }).expect(200)).body;
+    const summaries = entries.map((e: { summary: string }) => e.summary).join('\n');
+    expect(summaries).toMatch(/етап «заплановано» → «тендер оголошено»/);
+    expect(summaries).toMatch(/етап: сформовано, не підписано → підписано/);
+    await http.delete(`/api/contracts/${planned.id}`).expect(204);
   });
 
   it('сторінками: total — усього під фільтр', async () => {

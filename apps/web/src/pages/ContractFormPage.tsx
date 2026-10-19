@@ -1,10 +1,10 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ContractDetails, ContractInput } from '@order-tracking/shared';
+import type { ContractDetails, ContractInput, ContractStage } from '@order-tracking/shared';
 import { api } from '../api';
 import { contractNo, fq, parseQty, today } from '../format';
-import { DraftCheckbox, FieldError, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
+import { FieldError, StageSelect, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
 
 interface Row {
   key: number;
@@ -37,17 +37,27 @@ export function ContractFormPage() {
 function ContractForm({ existing }: { existing?: ContractDetails }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  // ?sign=1 — прийшли з «Підписано…» на картці: позначку вже знято, лишилось вказати номер.
+  // ?sign=1 — прийшли з «Підписано…» на картці: етап уже «Підписано», лишилось вказати номер, контрагента, дату.
   const signing = useSearchParams()[0].get('sign') === '1';
   const nextKey = useRef(1);
   const newRow = (): Row => ({ key: nextKey.current++, name: '', unit: 'шт', quantity: '', received: 0 });
 
   const [number, setNumber] = useState(existing?.number ?? '');
   const [counterparty, setCounterparty] = useState(existing?.counterparty ?? '');
-  const [contractDate, setContractDate] = useState(existing?.contractDate ?? today());
+  const [contractDate, setContractDate] = useState(existing ? existing.contractDate ?? '' : today());
+  /** Дату змінювали руками — тоді зміна етапу її не чіпає. */
+  const dateTouched = useRef(!!existing);
   const [expected, setExpected] = useState(existing?.expectedDeliveryDate ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [draft, setDraft] = useState(signing ? false : existing?.draft ?? false);
+  const [stage, setStage] = useState<ContractStage | null>(signing ? null : existing?.stage ?? null);
+  const unsigned = stage !== null;
+  const later = unsigned && <span className="muted small"> (можна пізніше)</span>;
+  const changeStage = (s: ContractStage | null) => {
+    setStage(s);
+    // Нове замовлення: у запланованого чи тендеру дати договору ще нема, у підписаного — сьогодні.
+    if (!dateTouched.current) setContractDate(s ? '' : today());
+    for (const k of ['number', 'counterparty', 'contractDate']) touch(k);
+  };
   const [file, setFile] = useState<File | null>(null);
   const [removeFile, setRemoveFile] = useState(false);
   const [rows, setRows] = useState<Row[]>(() =>
@@ -66,10 +76,10 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
       const input: ContractInput = {
         number,
         counterparty,
-        contractDate,
+        contractDate: contractDate || null,
         expectedDeliveryDate: expected || null,
         notes: notes || null,
-        draft,
+        stage,
         items: filled.map((r) => ({ id: r.id, name: r.name, unit: r.unit, quantity: parseQty(r.quantity) as number })),
       };
       let saved = existing ? await api.update(existing.id, input) : await api.create(input);
@@ -120,17 +130,18 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
         <div className="panel">
           <div className="panel-h">Договір</div>
           <div className="panel-b grid">
-            <label className="f">Номер договору{draft && <span className="muted small"> (можна пізніше)</span>}
+            <StageSelect id="f-stage" value={stage} onChange={changeStage} />
+            <label className="f">Номер договору{later}
               <input id="f-number" autoFocus={signing} className={err('number') ? 'invalid' : ''} value={number} onChange={(e) => { setNumber(e.target.value); touch('number'); }} maxLength={100} autoComplete="off" />
               <FieldError message={err('number')} />
             </label>
-            <label className="f span2">Контрагент
+            <label className="f">Контрагент{later}
               <input id="f-counterparty" className={err('counterparty') ? 'invalid' : ''} value={counterparty} onChange={(e) => { setCounterparty(e.target.value); touch('counterparty'); touch('number'); }} maxLength={300} list="counterparties" />
               <datalist id="counterparties">{counterparties.map((cp) => <option key={cp} value={cp} />)}</datalist>
               <FieldError message={err('counterparty')} />
             </label>
-            <label className="f">Дата договору
-              <input id="f-date" type="date" className={err('contractDate') ? 'invalid' : ''} value={contractDate} onChange={(e) => { setContractDate(e.target.value); touch('contractDate'); touch('expectedDeliveryDate'); }} />
+            <label className="f">Дата договору{later}
+              <input id="f-date" type="date" className={err('contractDate') ? 'invalid' : ''} value={contractDate} onChange={(e) => { setContractDate(e.target.value); dateTouched.current = true; touch('contractDate'); touch('expectedDeliveryDate'); }} />
               <FieldError message={err('contractDate')} />
             </label>
             <label className="f">Орієнтовна дата поставки
@@ -149,7 +160,6 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
             <label className="f wide">Примітки
               <textarea id="f-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
             </label>
-            <DraftCheckbox id="f-draft" checked={draft} onChange={(v) => { setDraft(v); touch('number'); }} />
           </div>
         </div>
 

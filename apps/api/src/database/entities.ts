@@ -1,6 +1,7 @@
 import {
   Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { ContractStage } from '@order-tracking/shared';
 import { numeric } from './numeric.transformer';
 
 @Entity('files')
@@ -20,15 +21,16 @@ export class Contract {
   @PrimaryGeneratedColumn() id: number;
   /** Зовнішній номер договору; null — лише поки договір не підписано (draft) */
   @Column('text', { nullable: true }) number: string | null;
-  @Column('text') counterparty: string;
+  @Column('text', { nullable: true }) counterparty: string | null;
   // Нормалізовані (UPPER у JS) копії для пошуку без урахування регістру незалежно від локалі БД.
   @Column('text', { nullable: true }) numberSearch: string | null;
-  @Column('text') counterpartySearch: string;
-  @Index() @Column('date') contractDate: string;
+  @Column('text', { nullable: true }) counterpartySearch: string | null;
+  /** null — лише поки договір не підписано */
+  @Index() @Column('date', { nullable: true }) contractDate: string | null;
   @Column('date', { nullable: true }) expectedDeliveryDate: string | null;
   @Column('text', { nullable: true }) notes: string | null;
-  /** Сформовано, не підписано — очікує на подальші дії (стан «draft») */
-  @Column('boolean', { default: false }) draft: boolean;
+  /** Етап до підписання (planned / tender_announced / tender_held / draft); null — підписано */
+  @Column('text', { nullable: true }) stage: ContractStage | null;
   @Column('int', { nullable: true }) fileId: number | null;
   @ManyToOne(() => StoredFile, { onDelete: 'SET NULL' }) @JoinColumn() file: StoredFile | null;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;

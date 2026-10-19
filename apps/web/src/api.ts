@@ -1,5 +1,5 @@
 import type {
-  AuditPage, AuditSearch, ContractDetails, ContractInput, ContractList, ContractSearch, CurrentUser, DeliveryInput,
+  AuditPage, AuditSearch, ContractDetails, ContractInput, ContractStage, ContractList, ContractSearch, CurrentUser, DeliveryInput,
   DeliveryList, DeliverySearch, PoolContractInput, PoolItem, PoolItemInput, PoolList, PoolSearch, ShortfallInput,
   ValidationErrorBody,
 } from '@order-tracking/shared';
@@ -82,7 +82,7 @@ export const api = {
     return request<ContractDetails>('PUT', `/contracts/${id}/file`, fd);
   },
   removeFile: (id: number) => request<ContractDetails>('DELETE', `/contracts/${id}/file`),
-  setDraft: (id: number, draft: boolean) => request<ContractDetails>('PUT', `/contracts/${id}/draft`, { draft }),
+  setStage: (id: number, stage: ContractStage | null) => request<ContractDetails>('PUT', `/contracts/${id}/stage`, { stage }),
   updateShortfall: (id: number, input: ShortfallInput) =>
     request<ContractDetails>('PUT', `/contracts/${id}/shortfall`, input),
   addDelivery: (id: number, input: DeliveryInput, file?: File | null) => {

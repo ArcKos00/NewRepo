@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import type { ContractDetails, ContractInput, ContractList, LiveEvent } from '@order-tracking/shared';
+import type { ContractDetails, ContractInput, ContractList, ContractStage, LiveEvent } from '@order-tracking/shared';
 import { Contract, Delivery, OrderItem, PoolAllocation, StoredFile } from '../database/entities';
 import { likePattern as like, orNull, qty, round3, searchText, searchWords, today } from '../common/text';
 import { fail } from '../common/validation';
@@ -9,9 +9,9 @@ import { FilesService } from '../files/files.service';
 import { AuditService } from '../audit/audit.service';
 import { EventsService } from '../events/events.service';
 import type { AuditContext } from '../audit/audit-context';
-import { contractChanges, contractLabel, itemLine, joinChanges, shortfallChanges } from '../audit/describe';
+import { contractChanges, contractLabel, fmtDate, itemLine, joinChanges, shortfallChanges, stageText } from '../audit/describe';
 import { details, fileInfo, loadItems, summary } from './contract-view';
-import { ContractDto, ContractHeaderDto, DraftDto, PAGE_SIZE, SearchDto, ShortfallDto } from './dto';
+import { ContractDto, ContractHeaderDto, PAGE_SIZE, SearchDto, ShortfallDto, stageOf } from './dto';
 
 const ITEM_LIKE = (param: string) =>
   `EXISTS (SELECT 1 FROM order_items i WHERE i.contract_id = c.id AND i.name_search LIKE :${param})`;
@@ -19,7 +19,7 @@ const ITEM_LIKE = (param: string) =>
 /** Стан договору в SQL — те саме, що statusOf() у contract-view.ts (щоб фільтрувати до пагінації). */
 const STATUS_SQL = `(
   SELECT CASE
-    WHEN c.draft THEN 'draft'
+    WHEN c.stage IS NOT NULL THEN c.stage
     WHEN COUNT(*) = 0 OR SUM(GREATEST(0, i.quantity - i.cancelled_quantity - COALESCE(r.received, 0))) <= 0 THEN 'completed'
     WHEN c.expected_delivery_date < :today THEN 'overdue'
     WHEN BOOL_OR(COALESCE(r.received, 0) > 0) THEN 'partial'
@@ -72,7 +72,8 @@ export class ContractsService {
     const page = f.page ?? 1;
     const pageSize = f.pageSize ?? PAGE_SIZE;
     const [contracts, total] = await qb
-      .orderBy('c.contract_date', 'DESC')
+      // Без дати (заплановані, тендери) — нагорі: це те, над чим зараз працюють.
+      .orderBy('c.contract_date', 'DESC', 'NULLS FIRST')
       .addOrderBy('c.id', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
@@ -92,6 +93,7 @@ export class ContractsService {
     const rows: { counterparty: string }[] = await this.ds.manager
       .createQueryBuilder(Contract, 'c')
       .select('DISTINCT c.counterparty', 'counterparty')
+      .where('c.counterparty IS NOT NULL')
       .orderBy('counterparty')
       .getRawMany();
     return rows.map((r) => r.counterparty);
@@ -101,13 +103,19 @@ export class ContractsService {
 
   async checkCommon(em: EntityManager, dto: ContractHeaderDto, id?: number) {
     const errors: Record<string, string> = {};
-    if (dto.expectedDeliveryDate && dto.expectedDeliveryDate < dto.contractDate)
+    if (dto.expectedDeliveryDate && dto.contractDate && dto.expectedDeliveryDate < dto.contractDate)
       errors.expectedDeliveryDate = 'Не може бути раніше дати договору';
     const number = orNull(dto.number);
-    if (!number && !dto.draft) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
-    const duplicate = number && await em.existsBy(Contract, {
+    const counterparty = orNull(dto.counterparty);
+    // Поки не підписано — можна без номера, контрагента й дати; підписаний — лише з ними.
+    if (!stageOf(dto)) {
+      if (!number) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
+      if (!counterparty) errors.counterparty = 'Вкажіть контрагента (без нього — лише непідписаний)';
+      if (!dto.contractDate) errors.contractDate = 'Вкажіть дату договору (без неї — лише непідписаний)';
+    }
+    const duplicate = number && counterparty && await em.existsBy(Contract, {
       numberSearch: searchText(number),
-      counterpartySearch: searchText(dto.counterparty),
+      counterpartySearch: searchText(counterparty),
       ...(id ? { id: Not(id) } : {}),
     });
     if (duplicate) errors.number = 'Договір з таким номером у цього контрагента вже існує';
@@ -116,13 +124,13 @@ export class ContractsService {
 
   private applyHeader(c: Contract, dto: ContractHeaderDto) {
     c.number = orNull(dto.number);
-    c.counterparty = dto.counterparty.trim();
+    c.counterparty = orNull(dto.counterparty);
     c.numberSearch = c.number && searchText(c.number);
-    c.counterpartySearch = searchText(dto.counterparty);
-    c.contractDate = dto.contractDate;
+    c.counterpartySearch = c.counterparty && searchText(c.counterparty);
+    c.contractDate = orNull(dto.contractDate);
     c.expectedDeliveryDate = orNull(dto.expectedDeliveryDate);
     c.notes = orNull(dto.notes);
-    c.draft = dto.draft ?? false;
+    c.stage = stageOf(dto);
   }
 
   private itemFields(i: { name: string; unit: string; quantity: number }) {
@@ -264,7 +272,7 @@ export class ContractsService {
         entityId: id,
         contractId: id,
         summary:
-          `Видалено договір ${contractLabel(before)} від ${before.contractDate.split('-').reverse().join('.')}: ` +
+          `Видалено договір ${contractLabel(before)}${before.contractDate ? ` від ${fmtDate(before.contractDate)}` : ''}: ` +
           `найменувань ${before.items.length}, поставок ${before.deliveries.length}, файлів ${files.length}`,
         details: { before },
       });
@@ -327,27 +335,27 @@ export class ContractsService {
     return result;
   }
 
-  // ---------- Сформовано, не підписано ----------
+  // ---------- Етап до підписання ----------
 
-  /** Позначка «сформовано, не підписано» без редагування договору (наприклад, договір підписали). */
-  async setDraft(id: number, dto: DraftDto, ctx: AuditContext): Promise<ContractDetails> {
+  /** Змінити етап без редагування договору; null — підписано (тоді потрібні номер, контрагент і дата). */
+  async setStage(id: number, stage: ContractStage | null, ctx: AuditContext): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
-      if (!dto.draft && !c.number) fail({ _: 'Щоб позначити договір підписаним, спершу вкажіть його номер (Редагувати).' });
-      const was = c.draft;
-      c.draft = dto.draft;
+      if (!stage && (!c.number || !c.counterparty || !c.contractDate))
+        fail({ _: 'Щоб позначити договір підписаним, спершу вкажіть номер, контрагента й дату договору (Редагувати).' });
+      const was = c.stage;
+      c.stage = stage;
       await em.save(c);
       await this.changed(em, id);
       await this.audit.record(em, ctx, {
-        action: 'contract.draft',
+        action: 'contract.stage',
         entityType: 'contract',
         entityId: id,
         contractId: id,
         summary:
-          was === c.draft
-            ? `Договір ${contractLabel(c)}: позначка «сформовано, не підписано» (без змін)`
-            : `Договір ${contractLabel(c)}: ${c.draft ? 'позначено «сформовано, не підписано»' : 'знято позначку «сформовано, не підписано» (підписано)'}`,
-        details: { before: { draft: was }, after: { draft: c.draft } },
+          `Договір ${contractLabel(c)}: етап ` +
+          (was === stage ? `«${stageText(stage)}» (без змін)` : `«${stageText(was)}» → «${stageText(stage)}»`),
+        details: { before: { stage: was }, after: { stage } },
       });
       return details(em, c, today());
     });
