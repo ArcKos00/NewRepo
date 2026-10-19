@@ -33,7 +33,7 @@ export class FilesController {
       contractId: contract?.id ?? delivery?.contractId ?? null,
       summary:
         `Відкрито файл «${file.originalName}»` +
-        (contract ? ` договору № ${contract.number}` : delivery ? ` накладної № ${delivery.invoiceNumber}` : ''),
+        (contract ? ` договору ${contract.number ? `№ ${contract.number}` : 'без номера'}` : delivery ? ` накладної № ${delivery.invoiceNumber}` : ''),
       details: { file: { id, name: file.originalName, size: file.size }, deliveryId: delivery?.id ?? null },
     });
     // Завжди як вкладення, щоб завантажений HTML/SVG не виконувався в браузері.

@@ -62,7 +62,7 @@ export function DeliveriesPage() {
                     <td className="tight num">{fdate(d.date)}</td>
                     <td className="tight"><b>{d.invoiceNumber}</b></td>
                     <td>
-                      <Link to={`/contracts/${d.contract.id}`}>{d.contract.number}</Link>
+                      <Link to={`/contracts/${d.contract.id}`}>{d.contract.number ?? <i className="muted">без номера</i>}</Link>
                       <div className="small muted">{d.contract.counterparty}</div>
                     </td>
                     <td className="small">

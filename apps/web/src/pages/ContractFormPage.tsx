@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ContractDetails, ContractInput } from '@order-tracking/shared';
 import { api } from '../api';
-import { fq, parseQty, today } from '../format';
+import { contractNo, fq, parseQty, today } from '../format';
 import { DraftCheckbox, FieldError, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
 
 interface Row {
@@ -37,6 +37,8 @@ export function ContractFormPage() {
 function ContractForm({ existing }: { existing?: ContractDetails }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  // ?sign=1 — прийшли з «Підписано…» на картці: позначку вже знято, лишилось вказати номер.
+  const signing = useSearchParams()[0].get('sign') === '1';
   const nextKey = useRef(1);
   const newRow = (): Row => ({ key: nextKey.current++, name: '', unit: 'шт', quantity: '', received: 0 });
 
@@ -45,7 +47,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
   const [contractDate, setContractDate] = useState(existing?.contractDate ?? today());
   const [expected, setExpected] = useState(existing?.expectedDeliveryDate ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [draft, setDraft] = useState(existing?.draft ?? false);
+  const [draft, setDraft] = useState(signing ? false : existing?.draft ?? false);
   const [file, setFile] = useState<File | null>(null);
   const [removeFile, setRemoveFile] = useState(false);
   const [rows, setRows] = useState<Row[]>(() =>
@@ -84,7 +86,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
       qc.setQueryData(['contract', saved.id], saved);
       qc.invalidateQueries({ queryKey: ['contracts'] });
       qc.invalidateQueries({ queryKey: ['counterparties'] });
-      const msg = existing ? 'Зміни збережено.' : `Договір № ${saved.number} створено.`;
+      const msg = existing ? 'Зміни збережено.' : `Договір ${contractNo(saved.number)} створено.`;
       navigate(`/contracts/${saved.id}`, {
         state: { flash: fileError ? `${msg} Але файл договору не вдалося зберегти — спробуйте ще раз у редагуванні.` : msg },
       });
@@ -110,7 +112,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
   return (
     <>
       <div><Link to={back} className="small">← назад</Link></div>
-      <div className="head"><h1>{existing ? `Редагування договору № ${existing.number}` : 'Нове замовлення'}</h1></div>
+      <div className="head"><h1>{existing ? `Редагування договору ${contractNo(existing.number)}` : 'Нове замовлення'}</h1></div>
 
       <form onSubmit={submit} noValidate className="stack">
         <FormError error={save.error} />
@@ -118,8 +120,8 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
         <div className="panel">
           <div className="panel-h">Договір</div>
           <div className="panel-b grid">
-            <label className="f">Номер договору
-              <input id="f-number" className={err('number') ? 'invalid' : ''} value={number} onChange={(e) => { setNumber(e.target.value); touch('number'); }} maxLength={100} autoComplete="off" />
+            <label className="f">Номер договору{draft && <span className="muted small"> (можна пізніше)</span>}
+              <input id="f-number" autoFocus={signing} className={err('number') ? 'invalid' : ''} value={number} onChange={(e) => { setNumber(e.target.value); touch('number'); }} maxLength={100} autoComplete="off" />
               <FieldError message={err('number')} />
             </label>
             <label className="f span2">Контрагент
@@ -147,7 +149,7 @@ function ContractForm({ existing }: { existing?: ContractDetails }) {
             <label className="f wide">Примітки
               <textarea id="f-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
             </label>
-            <DraftCheckbox id="f-draft" checked={draft} onChange={setDraft} />
+            <DraftCheckbox id="f-draft" checked={draft} onChange={(v) => { setDraft(v); touch('number'); }} />
           </div>
         </div>
 

@@ -213,6 +213,36 @@ describe('пошук', () => {
     await http.delete(`/api/contracts/${draft.id}`).expect(204);
   });
 
+  it('непідписаний договір — без номера; підписати можна лише з номером', async () => {
+    const items = [{ name: 'Дюбель', unit: 'шт', quantity: 5 }];
+    // Підписаний без номера — ні
+    const bad = await http.post('/api/contracts').send(contract({ number: '', items })).expect(422);
+    expect(bad.body.errors.number).toBeTruthy();
+    await http.post('/api/contracts').send(contract({ number: null, items })).expect(422);
+
+    // Непідписаний — так, і таких у контрагента може бути кілька
+    const a = (await http.post('/api/contracts').send(contract({ number: '', draft: true, items })).expect(201)).body as ContractDetails;
+    const b = (await http.post('/api/contracts').send(contract({ number: null, draft: true, items })).expect(201)).body as ContractDetails;
+    expect(a).toMatchObject({ number: null, status: 'draft' });
+    expect(b.number).toBeNull();
+    expect((await http.get('/api/contracts').query({ status: 'draft' }).expect(200)).body.total).toBe(2);
+    expect(await found({ q: 'постачальник', status: 'draft' })).toEqual([null, null]);
+
+    // Позначити підписаним без номера — ні; зняти позначку в редагуванні без номера — теж ні
+    const sign = await http.put(`/api/contracts/${a.id}/draft`).send({ draft: false }).expect(422);
+    expect(sign.body.errors._).toMatch(/номер/);
+    const keep = [{ id: a.items[0].id, name: 'Дюбель', unit: 'шт', quantity: 5 }];
+    await http.put(`/api/contracts/${a.id}`).send(contract({ number: '  ', items: keep })).expect(422);
+
+    // З номером — так
+    const signed = (await http.put(`/api/contracts/${a.id}`).send(contract({ number: 'Н-9', items: keep })).expect(200)).body as ContractDetails;
+    expect(signed).toMatchObject({ number: 'Н-9', draft: false, status: 'waiting' });
+
+    const { entries } = (await http.get('/api/audit').query({ contractId: b.id }).expect(200)).body;
+    expect(entries[0].summary).toMatch(/без номера/);
+    for (const id of [a.id, b.id]) await http.delete(`/api/contracts/${id}`).expect(204);
+  });
+
   it('сторінками: total — усього під фільтр', async () => {
     const page = async (n: number) =>
       (await http.get('/api/contracts').query({ page: n, pageSize: 1 }).expect(200)).body as ContractList;

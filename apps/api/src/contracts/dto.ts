@@ -28,8 +28,10 @@ export class ContractItemDto implements ContractItemInput {
 
 /** Поля договору без найменувань — спільні для звичайної форми і договору з нерозподіленого. */
 export class ContractHeaderDto implements Omit<ContractInput, 'items'> {
+  // Непідписаний договір можна зберегти без номера; підписаний — лише з номером (див. checkCommon).
+  @ValidateIf((o) => !o.draft || (o.number !== null && o.number !== undefined && o.number !== ''))
   @IsString() @IsNotEmpty({ message: 'Вкажіть номер договору' }) @MaxLength(100, { message: 'Не довше 100 символів' })
-  number: string;
+  number: string | null;
 
   @IsString() @IsNotEmpty({ message: 'Вкажіть контрагента' }) @MaxLength(300, { message: 'Не довше 300 символів' })
   counterparty: string;

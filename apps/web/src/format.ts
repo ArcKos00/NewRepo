@@ -23,6 +23,9 @@ export function parseQty(s: string): number | null {
   return /^\d+(\.\d+)?$/.test(v) ? Math.round(Number(v) * 1000) / 1000 : NaN;
 }
 
+/** «№ 123» або «без номера» (непідписаний договір може ще не мати номера). */
+export const contractNo = (number: string | null) => (number ? `№ ${number}` : 'без номера');
+
 export const STATUS_TEXT: Record<ContractStatus, string> = {
   draft: 'Сформовано, не підписано',
   waiting: 'Очікується',

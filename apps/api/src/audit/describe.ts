@@ -6,7 +6,8 @@ import { qty } from '../common/text';
 const d = (s: string | null | undefined) => (s ? s.split('-').reverse().join('.') : '—');
 const t = (s: string | null | undefined) => (s ? `«${s}»` : '—');
 
-export const contractLabel = (c: { number: string; counterparty: string }) => `№ ${c.number} (${c.counterparty})`;
+export const contractLabel = (c: { number: string | null; counterparty: string }) =>
+  `${c.number ? `№ ${c.number}` : 'без номера'} (${c.counterparty})`;
 
 export const itemLine = (i: { name: string; unit: string }, quantity: number) => `${i.name} — ${qty(quantity)} ${i.unit}`;
 

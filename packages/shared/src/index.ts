@@ -30,7 +30,8 @@ export interface Totals {
 
 export interface ContractSummary {
   id: number;
-  number: string;
+  /** null — лише в непідписаного (draft) договору */
+  number: string | null;
   counterparty: string;
   contractDate: string;
   expectedDeliveryDate: string | null;
@@ -69,7 +70,8 @@ export interface ContractItemInput {
 }
 
 export interface ContractInput {
-  number: string;
+  /** Можна не вказувати (null чи ''), лише поки договір не підписано (draft) */
+  number: string | null;
   counterparty: string;
   contractDate: string;
   expectedDeliveryDate: string | null;
@@ -141,7 +143,7 @@ export interface DeliveryRow {
   invoiceNumber: string;
   notes: string | null;
   file: FileInfo | null;
-  contract: { id: number; number: string; counterparty: string };
+  contract: { id: number; number: string | null; counterparty: string };
   lines: { orderItemId: number; name: string; unit: string; quantity: number }[];
 }
 
@@ -160,7 +162,7 @@ export type PoolStatus = 'unallocated' | 'partial' | 'allocated';
 /** Скільки з запису пішло в договір. */
 export interface PoolAllocation {
   contractId: number;
-  number: string;
+  number: string | null;
   counterparty: string;
   quantity: number;
 }

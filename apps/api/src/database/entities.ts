@@ -18,11 +18,11 @@ export class StoredFile {
 @Index(['numberSearch', 'counterpartySearch'], { unique: true })
 export class Contract {
   @PrimaryGeneratedColumn() id: number;
-  /** Зовнішній номер договору */
-  @Column('text') number: string;
+  /** Зовнішній номер договору; null — лише поки договір не підписано (draft) */
+  @Column('text', { nullable: true }) number: string | null;
   @Column('text') counterparty: string;
   // Нормалізовані (UPPER у JS) копії для пошуку без урахування регістру незалежно від локалі БД.
-  @Column('text') numberSearch: string;
+  @Column('text', { nullable: true }) numberSearch: string | null;
   @Column('text') counterpartySearch: string;
   @Index() @Column('date') contractDate: string;
   @Column('date', { nullable: true }) expectedDeliveryDate: string | null;

@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PoolItemInput, PoolStatus } from '@order-tracking/shared';
 import { api } from '../api';
-import { fdate, fq, parseQty, POOL_STATUS_TEXT, today } from '../format';
+import { contractNo, fdate, fq, parseQty, POOL_STATUS_TEXT, today } from '../format';
 import { useMe } from '../user';
 import { ConfirmButton, FieldError, FormError, LoadError, Loading, PoolStatusPill, useFieldErrors } from '../components/ui';
 import { FilterBar, Pagination, RangeText, useListParams } from '../components/listing';
@@ -84,7 +84,7 @@ export function PoolPage() {
                     <td className="small">
                       {p.allocations.length === 0 ? <span className="muted">—</span> : p.allocations.map((a) => (
                         <div key={a.contractId}>
-                          <Link to={`/contracts/${a.contractId}`}>№ {a.number}</Link>{' '}
+                          <Link to={`/contracts/${a.contractId}`}>{contractNo(a.number)}</Link>{' '}
                           <span className="muted">— <span className="num">{fq(a.quantity)}</span></span>
                         </div>
                       ))}

@@ -103,8 +103,10 @@ export class ContractsService {
     const errors: Record<string, string> = {};
     if (dto.expectedDeliveryDate && dto.expectedDeliveryDate < dto.contractDate)
       errors.expectedDeliveryDate = 'Не може бути раніше дати договору';
-    const duplicate = await em.existsBy(Contract, {
-      numberSearch: searchText(dto.number),
+    const number = orNull(dto.number);
+    if (!number && !dto.draft) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
+    const duplicate = number && await em.existsBy(Contract, {
+      numberSearch: searchText(number),
       counterpartySearch: searchText(dto.counterparty),
       ...(id ? { id: Not(id) } : {}),
     });
@@ -113,9 +115,9 @@ export class ContractsService {
   }
 
   private applyHeader(c: Contract, dto: ContractHeaderDto) {
-    c.number = dto.number.trim();
+    c.number = orNull(dto.number);
     c.counterparty = dto.counterparty.trim();
-    c.numberSearch = searchText(dto.number);
+    c.numberSearch = c.number && searchText(c.number);
     c.counterpartySearch = searchText(dto.counterparty);
     c.contractDate = dto.contractDate;
     c.expectedDeliveryDate = orNull(dto.expectedDeliveryDate);
@@ -331,6 +333,7 @@ export class ContractsService {
   async setDraft(id: number, dto: DraftDto, ctx: AuditContext): Promise<ContractDetails> {
     return this.ds.transaction(async (em) => {
       const c = await this.lock(em, id);
+      if (!dto.draft && !c.number) fail({ _: 'Щоб позначити договір підписаним, спершу вкажіть його номер (Редагувати).' });
       const was = c.draft;
       c.draft = dto.draft;
       await em.save(c);

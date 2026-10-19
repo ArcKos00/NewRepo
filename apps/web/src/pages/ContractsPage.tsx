@@ -74,7 +74,7 @@ export function ContractsPage() {
                   const rest = c.items.length - shown.length;
                   return (
                     <tr key={c.id} className="clickable" onClick={(e) => { if (!(e.target as HTMLElement).closest('a')) navigate(`/contracts/${c.id}`); }}>
-                      <td className="tight"><Link to={`/contracts/${c.id}`}><b>{c.number}</b></Link></td>
+                      <td className="tight"><Link to={`/contracts/${c.id}`}>{c.number ? <b>{c.number}</b> : <i className="muted">без номера</i>}</Link></td>
                       <td className="tight num">{fdate(c.contractDate)}</td>
                       <td>{c.counterparty}</td>
                       <td className="small">

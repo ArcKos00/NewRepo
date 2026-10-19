@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import { fdate, fq, fsize } from '../format';
+import { contractNo, fdate, fq, fsize } from '../format';
 import { ConfirmButton, FormError, LoadError, Loading, ProgressBar, StatusPill } from '../components/ui';
 import { useMe } from '../user';
 
@@ -17,7 +17,7 @@ export function ContractPage() {
     onSuccess: () => {
       qc.removeQueries({ queryKey: ['contract', id] });
       qc.invalidateQueries({ queryKey: ['contracts'] });
-      navigate('/contracts', { state: { flash: `Договір № ${c?.number} видалено.` } });
+      navigate('/contracts', { state: { flash: `Договір ${contractNo(c?.number ?? null)} видалено.` } });
     },
   });
   const setDraft = useMutation({
@@ -45,17 +45,16 @@ export function ContractPage() {
       <div><Link to="/contracts" className="small">← до списку</Link></div>
       <div className="head">
         <div>
-          <h1>Договір № {c.number} <StatusPill status={c.status} /></h1>
+          <h1>Договір {contractNo(c.number)} <StatusPill status={c.status} /></h1>
           <div className="muted">{c.counterparty}</div>
         </div>
         <div className="actions">
           {me && (
             <>
-              {c.draft && (
-                <button type="button" className="btn primary" onClick={() => setDraft.mutate(false)} disabled={setDraft.isPending}>
-                  Підписано
-                </button>
-              )}
+              {c.draft && (c.number
+                ? <button type="button" className="btn primary" onClick={() => setDraft.mutate(false)} disabled={setDraft.isPending}>Підписано</button>
+                // Без номера підписаним не позначити: ведемо в редагування з уже знятою позначкою.
+                : <Link className="btn primary" to={`/contracts/${id}/edit?sign=1`} title="Вкажіть номер договору">Підписано…</Link>)}
               <Link className={c.draft ? 'btn' : 'btn primary'} to={`/contracts/${id}/deliveries/new`}>+ Додати поставку</Link>
               <Link className="btn" to={`/contracts/${id}/shortfall`}>Недопоставка / дата</Link>
               <Link className="btn" to={`/contracts/${id}/edit`}>Редагувати</Link>
@@ -80,7 +79,7 @@ export function ContractPage() {
 
       <div className="panel panel-b">
         <dl className="meta">
-          <dt>Номер договору</dt><dd>{c.number}</dd>
+          <dt>Номер договору</dt><dd>{c.number ?? <span className="muted">ще немає</span>}</dd>
           <dt>Дата договору</dt><dd className="num">{fdate(c.contractDate)}</dd>
           <dt>Контрагент</dt><dd>{c.counterparty}</dd>
           {c.draft && <><dt>Стан</dt><dd><span className="c-warn">Сформовано, не підписано</span> <span className="muted small">— очікує на подальші дії</span></dd></>}

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PoolContractInput, PoolItem } from '@order-tracking/shared';
 import { api } from '../api';
-import { fdate, fq, parseQty, today } from '../format';
+import { contractNo, fdate, fq, parseQty, today } from '../format';
 import { DraftCheckbox, FieldError, FormError, LoadError, Loading, Modal, useFieldErrors } from '../components/ui';
 
 /** Що тягнемо: запис зліва (у замовлення) чи рядок справа (назад, тобто прибрати). */
@@ -56,7 +56,7 @@ export function PoolContractPage() {
       qc.invalidateQueries({ queryKey: ['pool'] });
       qc.invalidateQueries({ queryKey: ['contracts'] });
       qc.invalidateQueries({ queryKey: ['counterparties'] });
-      navigate(`/contracts/${c.id}`, { state: { flash: `Договір № ${c.number} створено з нерозподіленого.` } });
+      navigate(`/contracts/${c.id}`, { state: { flash: `Договір ${contractNo(c.number)} створено з нерозподіленого.` } });
     },
     onError: () => setConfirming(false),
   });
@@ -111,7 +111,7 @@ export function PoolContractPage() {
   const check = () => {
     const errors: Record<string, string> = {};
     if (!lines.length) errors._ = 'Перетягніть у замовлення хоча б одне найменування.';
-    if (!number.trim()) errors.number = 'Вкажіть номер договору';
+    if (!number.trim() && !draft) errors.number = 'Вкажіть номер договору (без номера — лише непідписаний)';
     if (!counterparty.trim()) errors.counterparty = 'Вкажіть контрагента';
     if (!contractDate) errors.contractDate = 'Вкажіть дату договору';
     if (expected && contractDate && expected < contractDate) errors.expectedDeliveryDate = 'Не може бути раніше дати договору';
@@ -234,7 +234,7 @@ export function PoolContractPage() {
             <label className="f">Примітки
               <textarea value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} />
             </label>
-            <DraftCheckbox checked={draft} onChange={setDraft} />
+            <DraftCheckbox checked={draft} onChange={(v) => { setDraft(v); edit('number'); }} />
             <button className="btn primary" type="submit" disabled={save.isPending}>Створити договір</button>
             <span className="small muted">Файл договору можна додати потім у редагуванні.</span>
           </div>
@@ -249,7 +249,7 @@ export function PoolContractPage() {
       {confirming && (
         <Modal title="Створити договір?" onClose={() => !save.isPending && setConfirming(false)}>
           <dl className="meta small">
-            <dt>Номер договору</dt><dd>{number}</dd>
+            <dt>Номер договору</dt><dd>{number.trim() || <span className="muted">без номера</span>}</dd>
             <dt>Контрагент</dt><dd>{counterparty}</dd>
             <dt>Дата договору</dt><dd className="num">{fdate(contractDate)}</dd>
             <dt>Орієнтовна дата поставки</dt><dd className="num">{fdate(expected || null)}</dd>

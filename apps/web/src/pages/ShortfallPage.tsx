@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ContractDetails } from '@order-tracking/shared';
 import { api } from '../api';
-import { fq, parseQty } from '../format';
+import { contractNo, fq, parseQty } from '../format';
 import { FieldError, FormError, LoadError, Loading, useFieldErrors } from '../components/ui';
 
 /** Недопоставка ("не зможуть") і орієнтовна дата поставки. */
@@ -53,7 +53,7 @@ function ShortfallForm({ contract: c }: { contract: ContractDetails }) {
       <div className="head">
         <div>
           <h1>Недопоставка та дата поставки</h1>
-          <div className="muted">Договір № {c.number} · {c.counterparty}</div>
+          <div className="muted">Договір {contractNo(c.number)} · {c.counterparty}</div>
         </div>
       </div>
 
