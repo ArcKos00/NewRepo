@@ -62,9 +62,8 @@ data:
   # Скільки годин живе один вхід (не подовжується).
   SESSION_MAX_HOURS: "12"
   AUTH_DISABLED: "false"
-  # Ролі адміністратора (журнал дій), через кому. Перехідний період: діє й стара «гола» admin realm-у —
-  # прибрати її звідси, коли gov-purchase-admin видано всім адмінам (вони мають увійти знову).
-  ADMIN_ROLE: "gov-purchase-admin,admin"
+  # Ролі адміністратора (журнал дій), через кому. Лише власна роль застосунку — не спільна «гола» admin realm-у.
+  ADMIN_ROLE: "gov-purchase-admin"
   # Перегляд, пошук і фільтри без входу; зміни — лише після входу. "false" — усе лише після входу.
   ANONYMOUS_READ: "true"
   # OpenTelemetry → Elastic APM (OTLP/HTTP): трейси, метрики, логи.
