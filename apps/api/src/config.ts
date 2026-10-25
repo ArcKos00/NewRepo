@@ -37,8 +37,14 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET ?? '',
   /** Скільки годин живе один вхід. Сесія не подовжується. */
   sessionMaxHours: Number(process.env.SESSION_MAX_HOURS ?? 12),
-  /** Роль користувача в realm Keycloak (realm_access.roles), що дає доступ до журналу дій. */
-  adminRole: process.env.ADMIN_ROLE ?? 'admin',
+  /**
+   * Ролі користувача в realm Keycloak (realm_access.roles), що дають доступ до журналу дій — через кому.
+   * Власна роль застосунку `gov-purchase-admin`, а не спільна «гола» `admin` realm-у.
+   */
+  adminRoles: (process.env.ADMIN_ROLE ?? 'gov-purchase-admin')
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean),
   /** Перегляд, пошук і фільтри без входу (маршрути @Viewable). false — усе лише після входу. */
   anonymousRead: process.env.ANONYMOUS_READ !== 'false',
   /** AUTH_DISABLED: чи dev-користувач — адміністратор (false — перевірити застосунок без прав адміна). */

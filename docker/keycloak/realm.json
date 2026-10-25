@@ -3,7 +3,7 @@
   "enabled": true,
   "sslRequired": "none",
   "roles": {
-    "realm": [{ "name": "admin", "description": "Журнал дій" }]
+    "realm": [{ "name": "gov-purchase-admin", "description": "Журнал дій" }]
   },
   "clients": [
     {
@@ -32,7 +32,7 @@
       "firstName": "Тест",
       "lastName": "Розробник",
       "credentials": [{ "type": "password", "value": "dev", "temporary": false }],
-      "realmRoles": ["default-roles-purchase", "admin"]
+      "realmRoles": ["default-roles-purchase", "gov-purchase-admin"]
     },
     {
       "username": "operator",

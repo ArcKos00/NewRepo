@@ -109,7 +109,7 @@ function userFrom(res: Oidc.TokenEndpointResponse & Oidc.TokenEndpointResponseHe
   const displayName =
     str('name') ?? ([str('family_name'), str('given_name')].filter(Boolean).join(' ') || null);
   const username = str('preferred_username') ?? str('email') ?? str('sub') ?? 'unknown';
-  return { id: str('sub') ?? `username:${username}`, username, displayName, admin: realmRoles(access).includes(config.adminRole) };
+  return { id: str('sub') ?? `username:${username}`, username, displayName, admin: realmRoles(access).some((r) => config.adminRoles.includes(r)) };
 }
 
 /** Ролі користувача в realm з access token (realm_access.roles). */

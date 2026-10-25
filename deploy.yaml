@@ -24,8 +24,8 @@
 # Вхід — через Keycloak, як у litopys. У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
 # (Client authentication ON), Standard flow + Direct Access Grants (форма входу застосунку);
 # Valid redirect URI https://purchase.gov.kub.k2.lan/auth/callback, post-logout https://purchase.gov.kub.k2.lan/.
-# Журнал дій бачать лише користувачі з роллю realm admin (Users → <користувач> → Role mapping;
-# назва — ADMIN_ROLE). Роль читається при вході: після призначення треба вийти й увійти знову.
+# Журнал дій бачать лише користувачі з роллю realm gov-purchase-admin (Users → <користувач> → Role mapping;
+# назви — ADMIN_ROLE). Роль читається при вході: після призначення треба вийти й увійти знову.
 # SESSION_SECRET має бути сталим між викатками: сесії лежать у базі (таблиця sessions), і з новим секретом
 # кука sid перестане підписуватись — усіх викине на логін.
 #
@@ -62,6 +62,9 @@ data:
   # Скільки годин живе один вхід (не подовжується).
   SESSION_MAX_HOURS: "12"
   AUTH_DISABLED: "false"
+  # Ролі адміністратора (журнал дій), через кому. Перехідний період: діє й стара «гола» admin realm-у —
+  # прибрати її звідси, коли gov-purchase-admin видано всім адмінам (вони мають увійти знову).
+  ADMIN_ROLE: "gov-purchase-admin,admin"
   # Перегляд, пошук і фільтри без входу; зміни — лише після входу. "false" — усе лише після входу.
   ANONYMOUS_READ: "true"
   # OpenTelemetry → Elastic APM (OTLP/HTTP): трейси, метрики, логи.

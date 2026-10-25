@@ -17,7 +17,7 @@ const VIEW = 'auth:view';
 export const Viewable = () => SetMetadata(VIEW, true);
 
 const ADMIN = 'auth:admin';
-/** Лише для адміністратора (роль ADMIN_ROLE у Keycloak). */
+/** Лише для адміністратора (одна з ролей ADMIN_ROLE у Keycloak). */
 export const AdminOnly = () => SetMetadata(ADMIN, true);
 
 /**
