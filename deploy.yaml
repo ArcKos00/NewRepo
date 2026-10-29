@@ -21,8 +21,8 @@
 #       --from-literal=KEYCLOAK_CLIENT_SECRET='<secret клієнта purchase у Keycloak>' \
 #       --from-literal=SESSION_SECRET="$(openssl rand -hex 32)"
 #
-# Вхід — через Keycloak, як у litopys. У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
-# (Client authentication ON), Standard flow + Direct Access Grants (форма входу застосунку);
+# Вхід — лише через сторінку Keycloak (Code + PKCE S256). У realm потрібен клієнт (KEYCLOAK_CLIENT_ID нижче): confidential
+# (Client authentication ON), Standard flow, PKCE S256, Direct Access Grants OFF (форми з паролем немає);
 # Valid redirect URI https://purchase.gov.kub.k2.lan/auth/callback, post-logout https://purchase.gov.kub.k2.lan/.
 # Журнал дій бачать лише користувачі з роллю realm gov-purchase-admin (Users → <користувач> → Role mapping;
 # назви — ADMIN_ROLE). Роль читається при вході: після призначення треба вийти й увійти знову.

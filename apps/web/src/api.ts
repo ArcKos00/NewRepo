@@ -101,7 +101,6 @@ export const api = {
   createFromPool: (input: PoolContractInput) => request<ContractDetails>('POST', '/pool/contract', input),
 
   me: () => request<CurrentUser>('GET', '/auth/me'),
-  login: (username: string, password: string) => request<CurrentUser>('POST', '/auth/login', { username, password }),
   logout: () => request<{ logoutUrl: string | null }>('POST', '/auth/logout'),
   ssoLoginUrl: (returnTo: string) => `/auth/login?returnTo=${encodeURIComponent(returnTo)}`,
 
