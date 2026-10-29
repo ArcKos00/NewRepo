@@ -1,22 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpException, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { Controller, Get, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Response } from 'express';
 import type { CurrentUser } from '@order-tracking/shared';
 import { config } from '../config';
 import { AuditService } from '../audit/audit.service';
 import { actorName, auditContext, currentUser } from '../audit/audit-context';
 import { Public } from './auth.guard';
-import { LoginError, OidcService } from './oidc.service';
+import { OidcService } from './oidc.service';
 import type { SessionRequest, SessionUser } from './session';
-
-class LoginDto {
-  @IsString() @IsNotEmpty({ message: 'Вкажіть ім’я користувача' }) @MaxLength(200) username: string;
-  @IsString() @IsNotEmpty({ message: 'Вкажіть пароль' }) @MaxLength(1000) password: string;
-}
 
 type TokenResponse = { access_token: string; id_token?: string };
 
-/** Вхід через Keycloak (як у litopys): форма застосунку і, запасним шляхом, сторінка Keycloak. */
+/** Вхід лише через сторінку Keycloak (Code + PKCE S256); форми з паролем (password grant) немає. */
 @Controller('auth')
 @Public()
 export class AuthController {
@@ -24,27 +18,6 @@ export class AuthController {
     private readonly oidc: OidcService,
     private readonly audit: AuditService,
   ) {}
-
-  /** Форма входу: логін і пароль → password grant у Keycloak → сесія (кука sid). */
-  @Post('login')
-  @HttpCode(200)
-  async formLogin(@Req() req: SessionRequest, @Body() dto: LoginDto): Promise<CurrentUser> {
-    if (!this.oidc.enabled) return this.info(req);
-    const username = dto.username.trim();
-    const result = await this.oidc.passwordLogin(username, dto.password).catch(async (e: unknown) => {
-      if (e instanceof LoginError) {
-        await this.audit.recordSafe({ ...auditContext(req), actor: username }, {
-          action: 'auth.login_failed',
-          success: false,
-          summary: `Невдалий вхід «${username}»: ${e.message}`,
-        });
-        throw new HttpException({ statusCode: e.status, message: e.message }, e.status);
-      }
-      throw e;
-    });
-    await this.startSession(req, result.user, result.tokens, 'password');
-    return this.info(req);
-  }
 
   /** Вхід через сторінку Keycloak (Code + PKCE). Redirect URI: `${PUBLIC_URL}/auth/callback`. */
   @Get('login')
@@ -88,7 +61,7 @@ export class AuthController {
     res.json({ logoutUrl: grant === 'code' ? await this.oidc.logoutUrl(idToken) : null });
   }
 
-  private async startSession(req: SessionRequest, user: SessionUser, tokens: TokenResponse, grant: 'password' | 'code') {
+  private async startSession(req: SessionRequest, user: SessionUser, tokens: TokenResponse, grant: 'code') {
     // нова сесія при вході — щоб не можна було підсунути наперед відомий sid (session fixation)
     await new Promise<void>((resolve, reject) => req.session!.regenerate((e) => (e ? reject(e) : resolve())));
     const s = req.session!;
@@ -100,7 +73,7 @@ export class AuthController {
     await save(req);
     await this.audit.recordSafe(auditContext(req), {
       action: 'auth.login',
-      summary: `Вхід: ${actorName(user)} (${grant === 'password' ? 'форма' : 'сторінка Keycloak'})`,
+      summary: `Вхід: ${actorName(user)} (сторінка Keycloak)`,
     });
   }
 

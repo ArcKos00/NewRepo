@@ -52,8 +52,8 @@
   можна задати `BUILD_ID`); сервер віддає його в заголовку `X-App-Build`. Відкрита вкладка зі старою збіркою
   показує «Вийшла нова версія» і перезавантажується при наступному переході на іншу сторінку (незбережену
   форму посеред набору не чіпає). Окремо налаштовувати чи чистити кеш у Cloudflare не треба.
-- **Вхід через Keycloak** (як у litopys): власна форма входу (password grant) або сторінка Keycloak
-  (Code + PKCE). Сесія — кука `sid`, дані сесії в Postgres (таблиця `sessions`), живе `SESSION_MAX_HOURS`
+- **Вхід через Keycloak**: лише сторінка Keycloak (Code + PKCE S256); власної форми з паролем
+  (password grant) немає — у realm `k2` ROPC дозволено тільки K2 Auth. Сесія — кука `sid`, дані сесії в Postgres (таблиця `sessions`), живе `SESSION_MAX_HOURS`
   від входу і не подовжується. Brute-force захист — на боці Keycloak.
 - **Перегляд без входу**: списки договорів і поставок, пошук, фільтри, картка договору й файли доступні
   анонімно; у шапці — кнопка «Увійти». Створення, редагування, видалення, поставки й недопоставки — лише
@@ -138,7 +138,7 @@ npm run dev:web                          # фронт на http://localhost:5173
 | Змінна | Призначення |
 |---|---|
 | `DATABASE_URL` | PostgreSQL |
-| `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` | realm і клієнт Keycloak (confidential, Standard flow + Direct Access Grants) |
+| `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` | realm і клієнт Keycloak (confidential, Standard flow + PKCE S256; Direct Access Grants вимкнено) |
 | `PUBLIC_URL` | адреса, яку бачить браузер: redirect URI = `PUBLIC_URL/auth/callback`; `https` → Secure-кука |
 | `SESSION_SECRET` | ключ підпису кукі `sid` (`openssl rand -hex 32`), сталий між викатками |
 | `SESSION_MAX_HOURS` | скільки живе один вхід, год (12) |

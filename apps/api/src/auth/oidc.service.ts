@@ -11,8 +11,9 @@ const oidcLib = () => (lib ??= import('openid-client'));
 const SCOPE = 'openid profile email';
 
 /**
- * Обгортка над openid-client (як BFF у litopys): discovery, вхід формою застосунку (password grant,
- * «Direct Access Grants» на клієнті) і через сторінку Keycloak (Code + PKCE), revoke і end-session при виході.
+ * Обгортка над openid-client: discovery, вхід лише через сторінку Keycloak (Code + PKCE S256), revoke і
+ * end-session при виході. Власної форми з паролем (password grant / «Direct Access Grants») більше немає:
+ * у realm k2 ROPC лишається тільки в K2 Auth, клієнт gov_purchase його не має.
  */
 @Injectable()
 export class OidcService implements OnModuleInit {
@@ -46,17 +47,6 @@ export class OidcService implements OnModuleInit {
     this.cfg = await oidc.discovery(issuer, config.keycloakClientId, config.keycloakClientSecret, undefined, opts);
     this.log.log(`Keycloak: ${issuer.href}`);
     return this.cfg;
-  }
-
-  /** Форма входу застосунку: логін і пароль → token endpoint Keycloak. */
-  async passwordLogin(username: string, password: string) {
-    const [cfg, oidc] = [await this.discover(), await oidcLib()];
-    try {
-      const res = await oidc.genericGrantRequest(cfg, 'password', { username, password, scope: SCOPE });
-      return { tokens: res, user: userFrom(res) };
-    } catch (e) {
-      throw new LoginError(loginErrorOf(oidc, e));
-    }
   }
 
   /** Вхід через сторінку Keycloak (Code + PKCE). `forceCredentials` — prompt=login. */
@@ -124,39 +114,4 @@ export function decodeJwtPayload(jwt: string): Record<string, unknown> {
   } catch {
     return {};
   }
-}
-
-export interface LoginFailure {
-  status: number;
-  message: string;
-}
-
-export class LoginError extends Error {
-  readonly status: number;
-  constructor(f: LoginFailure) {
-    super(f.message);
-    this.status = f.status;
-  }
-}
-
-/** Помилка token endpoint Keycloak → що показати у формі (як у litopys). */
-function loginErrorOf(oidc: typeof Oidc, e: unknown): LoginFailure {
-  if (e instanceof oidc.ResponseBodyError) {
-    const description = e.error_description ?? '';
-    switch (e.error) {
-      case 'invalid_grant':
-        if (/temporarily disabled/i.test(description))
-          return { status: 429, message: 'Забагато невдалих спроб — спробуйте пізніше' };
-        if (/disabled/i.test(description)) return { status: 403, message: 'Обліковий запис вимкнено' };
-        if (/not fully set up/i.test(description))
-          return { status: 403, message: 'Обліковий запис не завершено в Keycloak — увійдіть через сторінку Keycloak' };
-        return { status: 401, message: 'Невірне ім’я користувача або пароль' };
-      case 'invalid_client':
-      case 'unauthorized_client':
-        return { status: 503, message: 'Вхід через форму не налаштовано на сервері (Direct Access Grants)' };
-      default:
-        return { status: 502, message: `Keycloak: ${e.error}${description ? ` — ${description}` : ''}` };
-    }
-  }
-  return { status: 503, message: `Сервер входу недоступний: ${(e as Error).message}` };
 }
